@@ -1,0 +1,6 @@
+# Placeholder values for deploying Flink jobs that power GraphRAG ingestion.
+flinkJob:
+  parallelism: 1
+  resources:
+    cpu: "1"
+    memory: "1024m"

@@ -1,0 +1,12 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: graphrag-job
+spec:
+  template:
+    spec:
+      containers:
+        - name: graphrag
+          image: graphrag:latest
+          command: ["sbt", "core/run"]
+      restartPolicy: Never
