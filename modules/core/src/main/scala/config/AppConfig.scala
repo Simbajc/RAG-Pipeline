@@ -25,5 +25,18 @@ object AppConfig {
     val password: String = cfg.getString("Neo4jConfig.password")
     val database: String = cfg.getString("Neo4jConfig.database")
   }
+
+  object ollamaModel {
+    val baseUrl: String = cfg.getString("models.ollama.baseUrl")
+    val connectMs: Int = cfg.getInt("models.ollama.connectMs")
+    val attempts: Int = cfg.getInt("models.ollama.attempts")
+    val readMs: Int = cfg.getInt("models.ollama.readMs")
+    val chatModel: String = cfg.getString("models.ollama.chatModel")
+    val contextWindowSize: Int = cfg.getInt("models.ollama.num_ctx")
+    val temperature: Double = cfg.getDouble("models.ollama.temperature")
+    val maxModelContextBlock: Int = cfg.getInt("models.ollama.maxModelContextBlock")
+
+  }
+
 }
 

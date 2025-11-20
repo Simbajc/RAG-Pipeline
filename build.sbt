@@ -16,7 +16,7 @@ lazy val core = (project in file("modules/core"))
 
 // ---------------- ingestion (FIXED) ----------------
 lazy val ingestion = (project in file("modules/ingestion"))
-  .dependsOn(core)
+  .dependsOn(core, llm)
   .settings(
     name := "graphrag-ingestion",
     libraryDependencies ++= Seq(
@@ -45,8 +45,23 @@ lazy val neo4j = (project in file("modules/neo4j"))
   )
 
 lazy val llm = (project in file("modules/llm"))
+  .dependsOn(core)
   .settings(
-    name := "graphrag-llm"
+    name := "graphrag-llm",
+    libraryDependencies ++= Seq(
+      // Config
+      "com.typesafe" % "config" % "1.4.3",
+
+      // Circe JSON
+      "io.circe" %% "circe-core"    % "0.14.7",
+      "io.circe" %% "circe-generic" % "0.14.7",
+      "io.circe" %% "circe-parser"  % "0.14.7",
+
+      // STTP HTTP client
+      "com.softwaremill.sttp.client3" %% "core"             % "3.5.2",
+      "com.softwaremill.sttp.client3" %% "circe"            % "3.5.2",
+      "com.softwaremill.sttp.client3" %% "httpclient-backend" % "3.5.2"
+    )
   )
 
 lazy val root = (project in file("."))
