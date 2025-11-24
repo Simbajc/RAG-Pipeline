@@ -1,36 +1,28 @@
 package helper
 
+import config._
 import ingestion.SourceStream.Chunk
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.api.common.functions.MapFunction
 
-// If you already have these in core, remove this block and import them instead.
-sealed trait GraphWrite
-final case class UpsertNode(
-                             label: String,
-                             id:    String,
-                             props: Map[String, Any]
-                           ) extends GraphWrite
-
-final case class UpsertEdge(
-                             fromLabel: String,
-                             fromId:    String,
-                             rel:       String,
-                             toLabel:   String,
-                             toId:      String,
-                             props:     Map[String, Any]
-                           ) extends GraphWrite
-
 object GraphProjector {
 
   /**
-   * Very first, simple projector:
-   * - One Chunk row → one Chunk node upsert.
-   * - No Concept / relation logic yet.
+   * Full projector for HW3:
+   *
+   * 1) Chunk nodes
+   * 2) Concept nodes
+   * 3) Scored relations → edges
    */
-  def project(chunks: DataStream[Chunk]): DataStream[GraphWrite] = {
-    chunks.map(
-      new MapFunction[Chunk, GraphWrite] {
+  def project(
+               chunks: DataStream[Chunk],
+               mentions: DataStream[Mention],
+               coOccurs: DataStream[ConceptRelationshipMapping.CoOccur],
+               scored: DataStream[ScoredRelation]
+             ): DataStream[GraphWrite] = {
+
+    val chunkNodes: DataStream[GraphWrite] =
+      chunks.map(new MapFunction[Chunk, GraphWrite] {
         override def map(c: Chunk): GraphWrite =
           UpsertNode(
             label = "Chunk",
@@ -44,7 +36,41 @@ object GraphProjector {
               "hash"      -> c.hash
             )
           )
-      }
-    )
+      })
+
+    val conceptNodes: DataStream[GraphWrite] =
+      mentions.map(new MapFunction[Mention, GraphWrite] {
+        override def map(m: Mention): GraphWrite =
+          UpsertNode(
+            label = "Concept",
+            id    = m.concept.conceptId,
+            props = Map(
+              "lemma"   -> m.concept.lemma,
+              "surface" -> m.concept.surface,
+              "origin"  -> m.concept.origin
+            )
+          )
+      })
+
+    val relationEdges: DataStream[GraphWrite] =
+      scored.map(new MapFunction[ScoredRelation, GraphWrite] {
+        override def map(s: ScoredRelation): GraphWrite =
+          UpsertEdge(
+            fromLabel = "Concept",
+            fromId    = s.a.conceptId,
+            rel       = s.predicate,
+            toLabel   = "Concept",
+            toId      = s.b.conceptId,
+            props     = Map(
+              "confidence" -> s.confidence,
+              "evidence"   -> s.evidence
+            )
+          )
+      })
+
+    // Combine everything
+    chunkNodes
+      .union(conceptNodes)
+      .union(relationEdges)
   }
 }

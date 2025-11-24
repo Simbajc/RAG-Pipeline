@@ -16,7 +16,7 @@ lazy val core = (project in file("modules/core"))
 
 // ---------------- ingestion (FIXED) ----------------
 lazy val ingestion = (project in file("modules/ingestion"))
-  .dependsOn(core, llm)
+  .dependsOn(core, llm, neo4j)
   .settings(
     name := "graphrag-ingestion",
     libraryDependencies ++= Seq(
@@ -24,6 +24,8 @@ lazy val ingestion = (project in file("modules/ingestion"))
       "org.apache.flink" % "flink-java"           % flinkVersion,
       "org.apache.flink" % "flink-streaming-java" % flinkVersion,
       "org.apache.flink" % "flink-clients"        % flinkVersion,
+
+      "org.apache.flink" % "flink-streaming-scala_2.12" % flinkVersion % "provided",
 
       // Parquet + Hadoop
       "org.apache.parquet" % "parquet-hadoop" % parquetVersion,
@@ -35,13 +37,21 @@ lazy val ingestion = (project in file("modules/ingestion"))
 
       // ---- TEST DEPENDENCY ----
       "org.scalatest" %% "scalatest" % "3.2.19" % Test
+
     )
   )
 
 // ---------------- other modules ----------------
 lazy val neo4j = (project in file("modules/neo4j"))
+  .dependsOn(core)
   .settings(
-    name := "graphrag-neo4j"
+    name := "graphrag-neo4j",
+    libraryDependencies ++= Seq(
+      // Flink Java stack for metrics/mapping helpers
+      "org.apache.flink" % "flink-java"           % flinkVersion,
+      "org.apache.flink" % "flink-streaming-java" % flinkVersion,
+      "org.apache.flink" % "flink-clients"        % flinkVersion
+    )
   )
 
 lazy val llm = (project in file("modules/llm"))

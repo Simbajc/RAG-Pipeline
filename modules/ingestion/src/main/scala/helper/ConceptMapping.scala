@@ -1,34 +1,35 @@
 package helper
+import config.{Concept, Mention}
 import llModels.{Ask, Ollama}
 import ingestion.SourceStream.Chunk
 
 import scala.util.Try
 
-/**
- * A canonical "concept" that we want to represent as a node in the graph.
- *
- * @param conceptId Stable ID for this concept (e.g., hash of lemma).
- * @param lemma     Normalized form (usually lowercase token).
- * @param surface   Original surface form as it appeared in the text.
- * @param origin    How/where this concept was produced (e.g., "heuristic", "llm").
- */
-final case class Concept(
-                          conceptId: String,
-                          lemma:     String,
-                          surface:   String,
-                          origin:    String
-                        )
-
-/**
- * A mention of a Concept inside a particular chunk.
- *
- * @param chunkId ID of the chunk where this concept was found.
- * @param concept The Concept itself (shared across many mentions).
- */
-final case class Mention(
-                          chunkId: String,
-                          concept: Concept
-                        )
+///**
+// * A canonical "concept" that we want to represent as a node in the graph.
+// *
+// * @param conceptId Stable ID for this concept (e.g., hash of lemma).
+// * @param lemma     Normalized form (usually lowercase token).
+// * @param surface   Original surface form as it appeared in the text.
+// * @param origin    How/where this concept was produced (e.g., "heuristic", "llm").
+// */
+//final case class Concept(
+//                          conceptId: String,
+//                          lemma:     String,
+//                          surface:   String,
+//                          origin:    String
+//                        )
+//
+///**
+// * A mention of a Concept inside a particular chunk.
+// *
+// * @param chunkId ID of the chunk where this concept was found.
+// * @param concept The Concept itself (shared across many mentions).
+// */
+//final case class Mention(
+//                          chunkId: String,
+//                          concept: Concept
+//                        )
 
 /**
  * ConceptStage contains the logic for turning normalized chunks

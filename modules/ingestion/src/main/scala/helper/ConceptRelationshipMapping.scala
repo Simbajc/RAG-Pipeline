@@ -2,15 +2,40 @@ package helper
 
 //import model.{Mention, Concept, CoOccur}  // adjust to your actual package
 
+import config.{Concept, Mention, RelationCandidate}
+import helper.ConceptRelationshipMapping.CoOccur
+import ingestion.SourceStream.Chunk
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.scala.{DataStream, *}
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.util.Collector
+import org.apache.flink.api.common.functions.MapFunction
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
+
+
+//final case class RelationCandidate(a: Concept, b: Concept, evidence: String)
+//
+//final case class ScoredRelation(
+//                                 a: Concept,
+//                                 predicate: String,
+//                                 b: Concept,
+//                                 confidence: Double,
+//                                 evidence: String
+//                               )
+
+
+
+
+
+
 
 object ConceptRelationshipMapping {
+
+  given TypeInformation[RelationCandidate] =
+    TypeInformation.of(classOf[RelationCandidate])
 
   final case class CoOccur(a: Concept, b: Concept, windowId: String, freq: Long)
 
@@ -67,4 +92,63 @@ object ConceptRelationshipMapping {
           }
       }
     }
+
+
+  /** Pure version of the local co-occurrence logic for a single chunk.
+   * `mentions` must be in their natural order within the chunk.
+   */
+  def computeLocalCoOccurrence(
+                                mentions: Seq[Mention],
+                                windowSize: Int
+                              ): Seq[CoOccur] = {
+    val buf = scala.collection.mutable.ListBuffer.empty[CoOccur]
+
+    for {
+      (m, i) <- mentions.zipWithIndex
+      j <- (i + 1) until math.min(i + 1 + windowSize, mentions.length)
+      other = mentions(j)
+      if m.concept.conceptId != other.concept.conceptId
+    } {
+      buf += CoOccur(m.concept, other.concept, m.chunkId, windowSize)
+    }
+
+    buf.toList
+  }
+
+
+  /** Build cheap semantic-relation candidates from co-occurrence.
+   *
+   * For now we:
+   *   - ignore `normalized` and `mentions`
+   *   - create a lightweight `evidence` string from concept surfaces
+   *
+   * This is enough to feed the LLM scoring stage.
+   */
+  def makeCandidates(
+                      normalized: org.apache.flink.streaming.api.datastream.DataStream[Chunk],
+                      mentions: org.apache.flink.streaming.api.datastream.DataStream[Mention],
+                      coOccurs: org.apache.flink.streaming.api.datastream.DataStream[CoOccur]
+                    ): org.apache.flink.streaming.api.datastream.DataStream[RelationCandidate] = {
+
+    coOccurs
+      .map(
+        (co: CoOccur) => {
+          val ev = s"${co.a.surface} ... ${co.b.surface}" // simple evidence text
+
+          RelationCandidate(
+            a = co.a,
+            b = co.b,
+            evidence = ev
+          )
+        }
+      )
+      .returns(classOf[RelationCandidate])
+      .name("relation-candidates")
+  }
+
+
+
+
+
+
 }

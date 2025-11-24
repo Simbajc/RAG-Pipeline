@@ -1,43 +1,53 @@
-package helper
-
-import org.scalatest.funsuite.AnyFunSuite
 import org.apache.flink.configuration.Configuration
+import org.neo4j.driver.exceptions.ServiceUnavailableException
+import org.scalatest.funsuite.AnyFunSuite
+import config.{AppConfig, GraphWrite, UpsertEdge, UpsertNode}
+import helper.{Neo4jConfig, Neo4jGraphSink}
 
-final class Neo4jGraphSinkIntegrationSpec extends AnyFunSuite:
+class Neo4jGraphSinkIntegrationSpec extends AnyFunSuite {
 
-  test("Neo4jGraphSink upserts a node and an edge without error") {
+  test("Neo4jGraphSink upserts a node and an edge against a live DB") {
     val cfg = Neo4jConfig(
-      uri      = "bolt://localhost:7687",
-      user     = "neo4j",
-      password = "password",
-      database = "neo4j"
+      uri      = AppConfig.Neo4jConfig.uri,
+      user     = AppConfig.Neo4jConfig.user,
+      password = AppConfig.Neo4jConfig.password,
+      database = AppConfig.Neo4jConfig.database
     )
 
     val sink = new Neo4jGraphSink(cfg)
-    sink.open(new Configuration())
 
-    val node =
-      UpsertNode(
-        label = "Chunk",
-        id    = "test-chunk-2",
-        props = Map("docId" -> "doc-xyz", "text" -> "From ScalaTest")
-      )
+    try {
+      // In Flink this is called by the runtime; in tests we must call it ourselves.
+      sink.open(new Configuration())
 
-    val edge =
-      UpsertEdge(
-        fromLabel = "Chunk",
-        fromId    = "test-chunk-2",
-        rel       = "MENTIONS",
-        toLabel   = "Concept",
-        toId      = "concept-abc",
-        props     = Map("score" -> 0.7)
-      )
+      val node: GraphWrite =
+        UpsertNode(
+          label = "Concept",
+          id    = "c1",
+          props = Map("lemma" -> "aspirin")
+        )
 
-    // If any of these throw, the test fails.
-    sink.invoke(node, null)
-    sink.invoke(edge, null)
+      val edge: GraphWrite =
+        UpsertEdge(
+          fromLabel = "Concept",
+          fromId    = "c1",
+          rel       = "RELATED_TO",
+          toLabel   = "Concept",
+          toId      = "c2",
+          props     = Map("source" -> "test")
+        )
 
-    sink.close()
+      sink.invoke(node, null)
+      sink.invoke(edge, null)
 
-    assert(true) // we just assert "no exception"
+      // If we reached here, Neo4j was reachable and the sink executed without error.
+      succeed
+    } catch {
+      case _: ServiceUnavailableException =>
+        // When Neo4j is not running, don't fail the suite – just skip this integration test.
+        cancel("Neo4j not running on localhost:7687; skipping integration test")
+    } finally {
+      sink.close()
+    }
   }
+}

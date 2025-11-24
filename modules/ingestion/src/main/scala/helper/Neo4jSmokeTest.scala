@@ -1,6 +1,9 @@
 package helper
 
+import config.{UpsertEdge, UpsertNode, GraphWrite}
 import org.apache.flink.configuration.Configuration
+
+
 
 object Neo4jSmokeTest {
 
@@ -16,7 +19,7 @@ object Neo4jSmokeTest {
     sink.open(new Configuration())
 
     // Test node
-    val testNode =
+    val testNode: GraphWrite =
       UpsertNode(
         label = "Chunk",
         id    = "test-chunk-1",

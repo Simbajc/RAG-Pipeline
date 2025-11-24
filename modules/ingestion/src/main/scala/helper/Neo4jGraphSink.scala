@@ -4,6 +4,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.neo4j.driver.Values
+import config.{GraphWrite, UpsertNode, UpsertEdge}
 import scala.jdk.CollectionConverters._
 
 
@@ -85,7 +86,7 @@ final class Neo4jGraphSink(config: Neo4jConfig)
    * Idempotent node upsert:
    * MERGE (n:Label {id: $id}) SET n += $props
    */
-  private def upsertNode(
+  protected def upsertNode(
                           label: String,
                           id: String,
                           props: Map[String, Any]
@@ -108,7 +109,7 @@ final class Neo4jGraphSink(config: Neo4jConfig)
     })
   }
 
-  private def upsertEdge(
+  protected def upsertEdge(
                           fromLabel: String,
                           fromId: String,
                           rel: String,

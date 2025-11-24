@@ -1,5 +1,6 @@
 package helper
 
+import config.UpsertNode
 import org.scalatest.funsuite.AnyFunSuite
 import ingestion.SourceStream.Chunk
 

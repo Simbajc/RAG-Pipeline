@@ -1,53 +1,105 @@
 package llModels
 
-import config.AppConfig
-import llModels.OllamaJson.ChatMessage
-
-import scala.util.Try
+import config.{AppConfig, RelationCandidate}
+import llModels.OllamaJson.{ChatMessage, ChatOptions}
 
 object Ask {
 
-//  // crude but effective size guard; adjust as needed
-//  private val MaxQuestionChars = 300
-//  private val MaxContextChars  = 1500
+  // crude but effective size guard; adjust as needed
+  private val MaxQuestionChars = 300
+  private val MaxContextChars  = 1500
 
+  // ---------- Generic QA prompt (used by LlmSmokeTest) ----------
 
-  // Use config instead (fallbacks shown)
-  private val MaxQuestionChars: Int = 300
-  private val MaxContextChars:  Int =
-    Try(AppConfig.ollamaModel.maxModelContextBlock).getOrElse(2048)  // match your application.conf
-
-  /** Build robust messages: system guardrail + one user turn with a trimmed context. */
-  def buildMessages(question: String, context: String): Vector[ChatMessage] = {
+  private def buildMessages(question: String, context: String): Vector[ChatMessage] = {
     val q = question.take(MaxQuestionChars)
-//    val q = question
     val c = context.take(MaxContextChars)
 
     val system = ChatMessage(
-      role   = "system",
+      role = "system",
       content =
-        "You are a concise TA. Answer using ONLY from the provided context. " +
-          "If the answer isn’t present, reply exactly: I can’t find that in the context."
+        "You are a concise assistant that answers questions using only the provided context. " +
+          "If the answer is not present, reply exactly: I can't find that in the context."
     )
 
     val user = ChatMessage(
-      role    = "user",
+      role = "user",
       content =
         s"""Question: $q
-      Use ONLY this context (truncated):
-      $c"""
+
+Context:
+$c"""
     )
 
     Vector(system, user)
   }
 
-
-
-
-  /** Send the chat using a proper chat model (NOT the embedding model). */
-  def ask(client: Ollama, question: String, context: String, model: String = AppConfig.ollamaModel.chatModel): String = {
+  def ask(
+           client: Ollama,
+           question: String,
+           context: String,
+           model: String = AppConfig.ollamaModel.chatModel,
+           temperature: Double = 0.0
+         ): String = {
     val msgs = buildMessages(question, context)
-    // Let the client enforce short deterministic generations
-    client.chat(messages = msgs, model = model)
+
+    val opts = ChatOptions(
+      temperature = Some(temperature)
+    )
+
+    client.chat(
+      messages = msgs,
+      model    = model,
+      options  = opts
+    )
+  }
+
+  // ---------- Relationship scoring prompt (for RelationCandidate) ----------
+
+  private def contextFor(candidate: RelationCandidate): String =
+    s"""Concept A: ${candidate.a.lemma} (surface: ${candidate.a.surface})
+Concept B: ${candidate.b.lemma} (surface: ${candidate.b.surface})
+
+Context:
+${candidate.evidence}
+"""
+
+  private def buildMessagesRelationshipScoring(candidate: RelationCandidate): Vector[ChatMessage] = {
+    val ctx = contextFor(candidate).take(MaxContextChars)
+
+    val system = ChatMessage(
+      role = "system",
+      content =
+        "You are a concise concept relationship scorer. " +
+          "Given two concepts A and B and a context passage, infer the semantic relation between A and B. " +
+          """Respond ONLY with a single JSON object of the form: {"predicate": "<label or none>", "confidence": <0.0-1.0>}.""" +
+          "If no clear relation is expressed, use predicate \"none\" and confidence 0.0."
+    )
+
+    val user = ChatMessage(
+      role = "user",
+      content = ctx
+    )
+
+    Vector(system, user)
+  }
+
+  def askRelationshipScoring(
+                              client: Ollama,
+                              candidate: RelationCandidate,
+                              model: String = AppConfig.ollamaModel.chatModel,
+                              temperature: Double = 0.0
+                            ): String = {
+    val msgs = buildMessagesRelationshipScoring(candidate)
+
+    val opts = ChatOptions(
+      temperature = Some(temperature)
+    )
+
+    client.chat(
+      messages = msgs,
+      model    = model,
+      options  = opts
+    )
   }
 }
