@@ -1,12 +1,37 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: graphrag-job
+  name: graphrag-ingestion
+  namespace: graphrag
 spec:
+  backoffLimit: 0
   template:
     spec:
-      containers:
-        - name: graphrag
-          image: graphrag:latest
-          command: ["sbt", "core/run"]
       restartPolicy: Never
+      containers:
+        - name: graphrag-ingestion
+          image: simbajc29/graphrag-ingestion:latest
+          imagePullPolicy: Always
+          env:
+            - name: NEO4J_URI
+              value: "bolt://neo4j:7687"
+            - name: NEO4J_USER
+              value: "neo4j"
+            - name: NEO4J_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-auth
+                  key: neo4j-password
+            - name: OLLAMA_BASE_URL
+              value: "http://ollama:11434"
+          # If your IngestionModule takes CLI args like --config:
+          args:
+            - "--config"
+            - "/etc/job-config/application.conf"
+          volumeMounts:
+            - name: job-config
+              mountPath: /etc/job-config
+      volumes:
+        - name: job-config
+          configMap:
+            name: graphrag-config

@@ -106,55 +106,75 @@ object ConceptMapping {
    */
   def extractWithLLM(endpoint: String): Chunk => Iterable[Mention] =
     (c: Chunk) => {
+      println(s"[LLM CALLED] chunkId=${c.chunkId}")
+
       val text = Option(c.text).getOrElse("").trim
-      if text.isEmpty then
+      if (text.isEmpty) {
+        println(s"[LLM SKIP] chunkId=${c.chunkId}: empty text")
         Iterable.empty[Mention]
-      else {
-        // Build a small, deterministic client for this call.
-        // (Simpler for HW3 than trying to share a client across tasks.)
+      } else {
+        // normal path: call Ollama, build mentions
+
         val client = new Ollama(endpoint)
 
-        // Prompt: ask the model to list concepts, one per line.
         val question =
           """Extract the most important domain concepts (nouns or noun phrases)
             |from the context. Return your answer as PLAIN TEXT with ONE concept
-            |per line. Do not add bullets, numbers, or explanations.
+            |per line. Do not include bullets, numbers or explanations.
             |""".stripMargin
 
-        // Protect the pipeline: if the LLM call throws, just skip this chunk.
         val maybeRaw: Option[String] =
-          Try(Ask.ask(client, question, text)).toOption
-
-        maybeRaw
-          .toSeq        // Option -> Seq (0 or 1 element)
-          .flatMap { raw =>
-            // Turn LLM output into distinct concept strings
-            val concepts: Seq[String] =
-              raw
-                .split("\n")
-                .toSeq
-                .map(_.trim)
-                .filter(_.nonEmpty)
-                .distinct
-
-            // Map each concept string to our Concept + Mention model
-            concepts.map { phrase =>
-              val lemma = phrase.toLowerCase
-              val conceptId = s"${c.docId}::llm::$lemma"
-
-              val concept = Concept(
-                conceptId = conceptId,
-                lemma     = lemma,
-                surface   = phrase,
-                origin    = "llm"
-              )
-
-              Mention(
-                chunkId = c.chunkId,
-                concept = concept
-              )
+          Try(Ask.ask(client, question, text)).fold(
+            ex => {
+              println(s"[LLM ERROR] chunkId=${c.chunkId}: ${ex.getMessage}")
+              None
+            },
+            raw => {
+              println(s"[LLM RAW] chunkId=${c.chunkId}: " + raw.take(200))
+              Some(raw)
             }
-          }
+          )
+
+        val mentions: Seq[Mention] =
+          maybeRaw
+            .toSeq
+            .flatMap { raw =>
+              val lines =
+                raw
+                  .split("\n")
+                  .toSeq
+                  .map(_.trim)
+                  .map(_.replaceAll("""^[-*\d\.\)\s]+""", "")) // strip bullets
+                  .map(_.trim)
+                  .filter(_.nonEmpty)
+
+              if (lines.isEmpty) {
+                println(s"[LLM PARSE] chunkId=${c.chunkId}: no non-empty lines")
+              }
+
+              lines.distinct.map { phrase =>
+                val lemma = phrase.toLowerCase
+                val conceptId = s"${c.docId}::llm::$lemma"
+
+                val concept = Concept(
+                  conceptId = conceptId,
+                  lemma = lemma,
+                  surface = phrase,
+                  origin = "llm"
+                )
+
+                Mention(
+                  chunkId = c.chunkId,
+                  concept = concept
+                )
+              }
+            }
+
+        println(
+          s"[LLM RESULT] chunkId=${c.chunkId}, size=${mentions.size}, sample=${mentions.take(3).mkString(", ")}"
+        )
+
+        mentions
       }
     }
 

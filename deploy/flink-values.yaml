@@ -1,6 +1,28 @@
-# Placeholder values for deploying Flink jobs that power GraphRAG ingestion.
-flinkJob:
-  parallelism: 1
-  resources:
-    cpu: "1"
-    memory: "1024m"
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: graphrag-ingestion
+  namespace: graphrag
+spec:
+  image: flink:1.20.0-scala_2.12-java11
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "2"
+  serviceAccount: flink
+  job:
+    jarURI: s3://cs441-hw3-bucket/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
+    entryClass: ingestion.IngestionModule
+    args:
+      - "--mode"
+      - "full"
+      - "--config"
+      - "/etc/job-config/application.conf"
+    parallelism: 2
+    upgradeMode: stateless
+  jobManager:
+    resource:
+      memory: "1024m"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1

@@ -8,12 +8,15 @@ import ingestion.SourceStream.Chunk
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.scala.{DataStream, *}
+import org.apache.flink.streaming.api.scala.{DataStream, _}
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
 
-import scala.jdk.CollectionConverters.*
+
+//import scala.jdk.CollectionConverters.*
+import scala.collection.JavaConverters._
 
 
 //final case class RelationCandidate(a: Concept, b: Concept, evidence: String)
@@ -34,7 +37,7 @@ import scala.jdk.CollectionConverters.*
 
 object ConceptRelationshipMapping {
 
-  given TypeInformation[RelationCandidate] =
+  implicit val relationCandidateTypeInfo: TypeInformation[RelationCandidate] =
     TypeInformation.of(classOf[RelationCandidate])
 
   final case class CoOccur(a: Concept, b: Concept, windowId: String, freq: Long)
@@ -69,6 +72,12 @@ object ConceptRelationshipMapping {
                                  ): Unit = {
         // 1) Append new mention to buffer
         val current = bufferState.get().asScala.toList :+ value
+
+//        val current: List[RelationCandidateMention] =
+//          Option(bufferState.get()).getOrElse(List.empty[RelationCandidateMention])
+//
+//        val updated = current :+ value
+//        bufferState.update(updated)
 
         // 2) Keep only last `windowSize` mentions
         val window = current.takeRight(windowSize)

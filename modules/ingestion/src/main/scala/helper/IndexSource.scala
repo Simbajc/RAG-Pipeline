@@ -19,7 +19,7 @@ import org.apache.parquet.io.api.RecordMaterializer
  * Factory for a simple Flink SourceFunction[Chunk] that reads your
  * retrieval_index Parquet snapshot (both local and S3/HDFS via Hadoop FS).
  */
-object IndexSource:
+object IndexSource {
 
   /**
    * Single entry point.
@@ -33,62 +33,92 @@ object IndexSource:
    * SourceFunction that:
    *  - Recursively walks all files under rootUri
    *  - For each *.parquet file, uses ParquetReader[Group]
-   *  - Maps each row into a Chunk and emits it into the stream
+   *  - (Later) maps each row into a Chunk and emits it into the stream
    */
   private final class ParquetIndexSource(rootUri: String)
-    extends SourceFunction[Chunk]:
+    extends SourceFunction[Chunk] {
 
     @volatile private var running: Boolean = true
 
-    override def run(ctx: SourceFunction.SourceContext[Chunk]): Unit =
+    override def run(ctx: SourceFunction.SourceContext[Chunk]): Unit = {
       val conf = new Configuration()
       val root = new Path(rootUri)
       val fs   = root.getFileSystem(conf)
 
       // Depth-first traversal of all files under the retrieval_index root.
-      def traverse(path: Path): Unit =
-        if !running then return
+      def traverse(path: Path): Unit = {
+        if (!running) return
 
         val status = fs.getFileStatus(path)
 
-        if status.isDirectory then
+        if (status.isDirectory) {
           val iter = fs.listStatusIterator(path)
-          while running && iter.hasNext do
+          while (running && iter.hasNext) {
             traverse(iter.next().getPath)
-        else if status.isFile && path.getName.endsWith(".parquet") then
+          }
+        } else if (status.isFile && path.getName.endsWith(".parquet")) {
           readParquetFile(path, conf, ctx)
+        }
+      }
 
       traverse(root)
+    }
 
-    override def cancel(): Unit =
+    override def cancel(): Unit = {
       running = false
+    }
 
     // ----------------- Helpers -----------------
 
     /**
-     * Reads a single Parquet file and emits one Chunk per row.
+     * Reads a single Parquet file.
      *
      * Expected schema (from your Spark retrieval_index writer):
      *   shard, docId, contentHash, title, language,
      *   chunkId, chunkIx, sectionPath, chunkText, embedding, embDim
+     *
+     * For now this is wired just enough to compile; you can later
+     * add the logic that converts each Group row into a Chunk and
+     * calls ctx.collect(chunk).
      */
     private def readParquetFile(
                                  file: Path,
                                  conf: Configuration,
-                                 ctx:  SourceFunction.SourceContext[Chunk]
-                               ): Unit =
+                                 ctx: SourceFunction.SourceContext[Chunk]
+                               ): Unit = {
 
       // Minimal ReadSupport to get parquet.example.data.Group rows.
-      final class GroupReadSupport extends ReadSupport[Group]:
+      final class GroupReadSupport extends ReadSupport[Group] {
         override def init(context: InitContext): ReadSupport.ReadContext =
           new ReadSupport.ReadContext(context.getFileSchema)
 
         override def prepareForRead(
-         conf: Configuration,
-         keyValueMeta: java.util.Map[String, String],
-         fileSchema: MessageType,
-         readContext:ReadSupport.ReadContext
-        ): RecordMaterializer[Group] =
+                                     conf: Configuration,
+                                     keyValueMeta: java.util.Map[String, String],
+                                     fileSchema: MessageType,
+                                     readContext: ReadSupport.ReadContext
+                                   ): RecordMaterializer[Group] =
           new GroupRecordConverter(fileSchema)
+      }
 
-
+      // You can flesh this out later if needed; currently it is a stub
+      // to avoid compilation errors in Scala 2.12.
+      //
+      // val readSupport = new GroupReadSupport()
+      // val reader = ParquetReader
+      //   .builder[Group](readSupport, file)
+      //   .withConf(conf)
+      //   .build()
+      //
+      // try {
+      //   var row: Group = reader.read()
+      //   while (row != null && running) {
+      //     // TODO: map `row` -> Chunk and ctx.collect(chunk)
+      //     row = reader.read()
+      //   }
+      // } finally {
+      //   reader.close()
+      // }
+    }
+  }
+}
