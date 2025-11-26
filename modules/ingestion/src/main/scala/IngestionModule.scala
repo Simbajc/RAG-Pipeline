@@ -3,8 +3,10 @@ package ingestion
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
 import SourceStream.Chunk
-import helper.Normalize
-import org.apache.flink.api.common.functions.MapFunction
+import config.{Mention, RelationCandidate}
+import helper.{ConceptMapping, Normalize}
+import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
+import org.apache.flink.util.Collector
 
 
 //import org.apache.flink.api.common.typeinfo.{TypeHint, TypeInformation}
@@ -64,167 +66,55 @@ object IngestionModule {
     normalized.print("normalized")
 
     // 6) Exactly one execute, at the very end
-    env.execute("graphrag-ingestion")
-
-//    // 3) Tell map exactly what R is
-//    val normalized: DataStream[Chunk] =
-//      testChunks
-//        .map[Chunk]((c: Chunk) => Normalize.cleanAndTag(c))
-//        .name("normalize+ner")
-
-//    normalized.print("normalized")
-
-//    env.execute("graphrag-ingestion")
 
 
-    // ACTIVATE AT LEAST ONE SINK
-//    testChunks.print("testChunks")
-
-//    val testChunks: DataStream[Chunk] =
-//      env.fromElements(
-//        Chunk("chunk1", "doc1", (0, 38), "This is a test about Flink and Scala.", "file://local-test/doc1", "h1"),
-//        Chunk("chunk2", "doc2", (0, 26), "Another small test chunk.", "file://local-test/doc2", "h2")
-//      )
-//    println("Passed testChunks no asJava")
-
-//    val sampleChunks = new java.util.ArrayList[Chunk]()
-//    sampleChunks.add(
-//      Chunk("chunk1", "doc1", (0, 38), "This is a test about Flink and Scala.", "file://local-test/doc1", "h1")
-//    )
-//    sampleChunks.add(
-//      Chunk("chunk2", "doc2", (0, 26), "Another small test chunk.", "file://local-test/doc2", "h2")
-//    )
-//
-//    val testChunks: DataStream[Chunk] =
-//      env.fromCollection(sampleChunks)
-
-    // ADD THIS: at least one sink
-//    testChunks.print("testChunks")
-
-    println("Print Chunks")
-
-    // MOVE execute down here and make sure only one execute exists
-//    env.execute("graphrag-ingestion")
-
-    // 1) normalize
-//    val normalized: DataStream[Chunk] =
-////        chunks
-//        testChunks
-//        .map((value: Chunk) => Normalize.cleanAndTag(value))
-//        .returns(chunkTypeInfo) // <- important
-//        .name("normalize+ner")
-//    normalized.print("normalized")
-
-//    env.execute("graphrag-ingestion")
-
-//    val normalized: DataStream[Chunk] =
-////      chunks
-//      testChunks
-//        .map(new MapFunction[Chunk, Chunk] {
-//          override def map(value: Chunk): Chunk =
-//            Normalize.cleanAndTag(value)
-//        })
-//        .returns(chunkTypeInfo)
-//        .name("normalize+ner")
 
     // 2) heuristic mentions
-//    val heuristicMentions: DataStream[Mention] =
-//      normalized
-//        .flatMap(new FlatMapFunction[Chunk, Mention] {
-//          override def flatMap(c: Chunk, out: Collector[Mention]): Unit = {
-//            ConceptMapping
-//              .extractHeuristic(c)
-//              .foreach(out.collect)
-//          }
-//        })
-//        .returns(mentionTypeInfo) // <- important
-//        .name("concept-heuristics")
-//
-//    heuristicMentions.print("heuristic")
+    val heuristicMentions: DataStream[Mention] =
+      normalized
+        .flatMap(new FlatMapFunction[Chunk, Mention] {
+          override def flatMap(c: Chunk, out: Collector[Mention]): Unit = {
+            ConceptMapping
+              .extractHeuristic(c)
+              .foreach(out.collect)
+          }
+        })
+        .name("concept-heuristics")
 
-    // group words together that have the same base llama (lamma: run | Words: run, ran, runs)
-//    val heuristicMentions: DataStream[Mention] =
-//      normalized
-//        .flatMap((c: Chunk, out: Collector[Mention]) => {
-//          ConceptMapping
-//            .extractHeuristic(c)
-//            .foreach(out.collect)
-//        })
-//        .name("concept-heuristics")
+    heuristicMentions.print("heuristic")
+
+
 
 //    implicit val relationCandidateTypeInfo: TypeInformation[RelationCandidate] =
 //      TypeInformation.of(classOf[RelationCandidate])
-    //    // Get the text chunk overall main concept
+        // Get the text chunk overall main concept
 
-//        val ollamaEndpoint: String = "http://127.0.0.1:11434" // or "http://localhost:11434"
-//        val llmMentions: DataStream[Mention] =
-//          normalized
-//            .flatMap { (c: Chunk, out: Collector[Mention]) =>
-//              ConceptMapping
-//                .extractWithLLM(ollamaEndpoint)(c)
-//                .foreach(out.collect)
-//            }
-//            .returns(mentionTypeInfo)
-//            .name("concept-llm")
+    val ollamaEndpoint: String = "http://127.0.0.1:11434" // or "http://localhost:11434"
 
-    // LLM-powered concept extraction as explicit UDF
-//    final class LlmmMentionFlatMap(ollamaEndpoint: String)
-//      extends FlatMapFunction[Chunk, Mention]
-//        with Serializable {
-//
-//      override def flatMap(c: Chunk, out: Collector[Mention]): Unit = {
-//        ConceptMapping
-//          .extractWithLLM(ollamaEndpoint)(c)
-//          .foreach(out.collect)
-//      }
-//    }
-//
-//    val ollamaEndpoint: String = "http://127.0.0.1:11434"
-//
-//    val llmMentions: DataStream[Mention] =
-//      normalized
-//        .flatMap(new LlmmMentionFlatMap(ollamaEndpoint))
-//        .returns(mentionTypeInfo)
-//        .name("concept-llm")
+    val llmMentions: DataStream[Mention] =
+      normalized
+        .flatMap(new FlatMapFunction[Chunk, Mention] {
+          override def flatMap(c: Chunk, out: Collector[Mention]): Unit = {
+            ConceptMapping
+              .extractWithLLM(ollamaEndpoint)(c)
+              .foreach(out.collect)
+          }
+        })
+        .name("concept-llm")
+
+    llmMentions.print("llm-mentions")
 
 
-    //        llmMentions
-//          .print("llm-mentions") // label will appear in the logs
-//          .name("llm-mentions-print")
 
-//    val heuristicMentions: DataStream[Mention] =
-//      normalized
-//        .flatMap(
-//          new FlatMapFunction[Chunk, Mention] {
-//            override def flatMap(c: Chunk, out: Collector[Mention]): Unit = {
-//              ConceptMapping
-//                .extractHeuristic(c)
-//                .foreach(out.collect)
-//            }
-//          }
-//        )
-//        .returns(classOf[Mention])
-//        .name("concept-heuristics")
-//
-//    val llmMentions: DataStream[Mention] =
-//      normalized
-//        .flatMap(
-//          new FlatMapFunction[Chunk, Mention] {
-//            override def flatMap(c: Chunk, out: Collector[Mention]): Unit = {
-//              ConceptMapping
-//                .extractWithLLM("http://ollama:11434")(c)
-//                .foreach(out.collect)
-//            }
-//          }
-//        )
-//        .returns(classOf[Mention])
-//        .name("concept-llm")
-//
-//    // Aim is to unionize the grouping of similar words and the overall concept of the chunks
-//    val mentions: DataStream[Mention] =
-//      heuristicMentions
-//        .union(llmMentions)
-//    mentions.getTransformation.setName("mentions-all")
+    // Aim is to unionize the grouping of similar words and the overall concept of the chunks
+    val mentions: DataStream[Mention] =
+      heuristicMentions
+        .union(llmMentions)
+
+    mentions
+      .print("all-mentions")
+      .name("all-mentions-sink")
+    env.execute("graphrag-ingestion")
 
 
 //
