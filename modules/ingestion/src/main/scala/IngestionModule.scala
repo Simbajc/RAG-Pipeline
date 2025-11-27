@@ -3,10 +3,13 @@ package ingestion
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
 import SourceStream.Chunk
-import config.{Mention, RelationCandidate}
-import helper.{ConceptMapping, Normalize}
+import config.{AppConfig, Mention, RelationCandidate}
+import helper.ConceptRelationshipMapping.CoOccur
+import helper.{ConceptMapping, ConceptRelationshipMapping, Normalize}
 import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
 import org.apache.flink.util.Collector
+import org.apache.flink.api.java.functions.KeySelector
+
 
 
 //import org.apache.flink.api.common.typeinfo.{TypeHint, TypeInformation}
@@ -37,6 +40,16 @@ object IngestionModule {
     val env: StreamExecutionEnvironment =
       StreamExecutionEnvironment.getExecutionEnvironment
 
+
+    val chunks: DataStream[Chunk] =
+      SourceStream
+        .build(env) // <-- whatever helper you wrote
+        .name("chunks-from-parquet")
+
+    chunks.print("chunks-from-parquet")
+
+
+
     // 2) TypeInformation for Chunk (Scala 2.12)
     implicit val chunkTypeInfo: TypeInformation[Chunk] =
       createTypeInformation[Chunk]
@@ -54,13 +67,15 @@ object IngestionModule {
 
     // 4) Optional normalize stage (still produces Chunk)
     // 3) Use an explicit MapFunction – NO Scala lambda
-    val normalized: DataStream[Chunk] =
+    val normalized: DataStream[Chunk] = {
+//      chunks
       testChunks
         .map(new MapFunction[Chunk, Chunk] {
           override def map(value: Chunk): Chunk =
             Normalize.cleanAndTag(value)
         })
         .name("normalize+ner")
+    }
 
     // 5) At least one sink
     normalized.print("normalized")
@@ -114,22 +129,35 @@ object IngestionModule {
     mentions
       .print("all-mentions")
       .name("all-mentions-sink")
+
+
+
+
+
+    // 2) Optional: co-occurrence edges between concepts
+    implicit val coOccurTypeInfo: TypeInformation[CoOccur] =
+      TypeInformation.of(classOf[CoOccur])
+
+    val coOccurs: DataStream[CoOccur] =
+      mentions
+        .keyBy(new KeySelector[Mention, String] {
+          override def getKey(value: Mention): String =
+            value.chunkId
+        })
+        .process(ConceptRelationshipMapping.localCoOccurrence(windowSize = 3))
+        .name("cooccur-local")
+
+    coOccurs.print("co-occurs")
+
+    println("Cocurence is Passing")
     env.execute("graphrag-ingestion")
 
 
-//
-//
-//    // Make the relationships between concepts. (Edges of the Graph)
-//    val coOccurs: DataStream[CoOccur] =
-//      mentions
-//        .keyBy(_.chunkId)
-//        .process(ConceptRelationshipMapping.localCoOccurrence(windowSize = 3))
-//        .name("cooccur-local")
-//
+
 //    // Build cheap semantic-relation candidates from co-occurrence.
 //    val candidates: DataStream[RelationCandidate] =
 //      ConceptRelationshipMapping.makeCandidates(normalized, mentions, coOccurs)
-//
+////
 //    // create ONE client for the job
 //    val ollamaClient = new Ollama("http://ollama:11434")
 //
