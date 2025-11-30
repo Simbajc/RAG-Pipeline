@@ -3,7 +3,8 @@ package ingestion
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
 import SourceStream.Chunk
-import config.{AppConfig, Mention, RelationCandidate}
+import config.AppConfig.ollamaModel.baseUrl
+import config.{AppConfig, Mention, RelationCandidate, ScoredRelation}
 import helper.ConceptRelationshipMapping.CoOccur
 import helper.{ConceptMapping, ConceptRelationshipMapping, Normalize}
 import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
@@ -149,30 +150,39 @@ object IngestionModule {
 
     coOccurs.print("co-occurs")
 
-    println("Cocurence is Passing")
-    env.execute("graphrag-ingestion")
+//    println("Cocurence is Passing")
+//    env.execute("graphrag-ingestion")
 
 
 
-//    // Build cheap semantic-relation candidates from co-occurrence.
-//    val candidates: DataStream[RelationCandidate] =
-//      ConceptRelationshipMapping.makeCandidates(normalized, mentions, coOccurs)
-////
+    // Build cheap semantic-relation candidates from co-occurrence.
+    val candidates: DataStream[RelationCandidate] =
+      ConceptRelationshipMapping.makeCandidates(normalized, mentions, coOccurs)
+
+
+    candidates.print("relation-candidates")
+
+//    println("Cocurence is Passing")
+
+
 //    // create ONE client for the job
 //    val ollamaClient = new Ollama("http://ollama:11434")
-//
-//
-//
-//    val scored: DataStream[ScoredRelation] =
-//      candidates
-//        .process(
-//          RelationScoringStage.withOllama(
-//            baseUrl = "http://ollama:11434",
-//            model = "llama3:instruct",
-//            temperature = 0.0
-//          )
-//        )
-//        .name("relation-scoring")
+
+
+
+    val scored: DataStream[ScoredRelation] =
+      candidates
+        .process(
+          RelationScoringStage.withOllama(
+            baseUrl = ollamaEndpoint,
+            model = "llama3:instruct",
+            temperature = 0.0
+          )
+        )
+        .name("relation-scoring")
+
+    scored.print("relation-scoring")
+    env.execute("graphrag-ingestion")
 
 //    val graphWrites: DataStream[GraphWrite] =
 //      GraphProjector.project(normalized, mentions, coOccurs, scored)

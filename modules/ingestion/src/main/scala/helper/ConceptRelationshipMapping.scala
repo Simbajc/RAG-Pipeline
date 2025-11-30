@@ -134,24 +134,22 @@ object ConceptRelationshipMapping {
    * This is enough to feed the LLM scoring stage.
    */
   def makeCandidates(
-                      normalized: org.apache.flink.streaming.api.datastream.DataStream[Chunk],
-                      mentions: org.apache.flink.streaming.api.datastream.DataStream[Mention],
-                      coOccurs: org.apache.flink.streaming.api.datastream.DataStream[CoOccur]
-                    ): org.apache.flink.streaming.api.datastream.DataStream[RelationCandidate] = {
+                      normalized: DataStream[Chunk],
+                      mentions:   DataStream[Mention],
+                      coOccurs:   DataStream[CoOccur]
+                    ): DataStream[RelationCandidate] = {
 
     coOccurs
-      .map(
-        (co: CoOccur) => {
+      .map(new MapFunction[CoOccur, RelationCandidate] {
+        override def map(co: CoOccur): RelationCandidate = {
           val ev = s"${co.a.surface} ... ${co.b.surface}" // simple evidence text
-
           RelationCandidate(
-            a = co.a,
-            b = co.b,
+            a        = co.a,
+            b        = co.b,
             evidence = ev
           )
         }
-      )
-      .returns(classOf[RelationCandidate])
+      })
       .name("relation-candidates")
   }
 
