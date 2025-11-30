@@ -2,8 +2,8 @@ package helper
 
 import config._
 import ingestion.SourceStream.Chunk
-import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.streaming.api.scala.{DataStream, _}
 
 object GraphProjector {
 

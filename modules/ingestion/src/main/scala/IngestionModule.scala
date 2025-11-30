@@ -4,9 +4,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
 import SourceStream.Chunk
 import config.AppConfig.ollamaModel.baseUrl
-import config.{AppConfig, Mention, RelationCandidate, ScoredRelation}
+import config.{AppConfig, GraphWrite, Mention, RelationCandidate, ScoredRelation}
 import helper.ConceptRelationshipMapping.CoOccur
-import helper.{ConceptMapping, ConceptRelationshipMapping, Normalize}
+import helper.{ConceptMapping, ConceptRelationshipMapping, GraphProjector, Normalize}
 import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.functions.KeySelector
@@ -180,16 +180,15 @@ object IngestionModule {
           )
         )
         .name("relation-scoring")
-
     scored.print("relation-scoring")
-    env.execute("graphrag-ingestion")
 
-//    val graphWrites: DataStream[GraphWrite] =
-//      GraphProjector.project(normalized, mentions, coOccurs, scored)
 
-//      val graphWrites = GraphProjector.project(normalized)
+
+    //      val graphWrites = GraphProjector.project(normalized)
 
     println("Print Chunks")
+
+
 //    graphWrites.print()
 //
 //    val neo4jCfg = Neo4jConfig(
@@ -205,6 +204,11 @@ object IngestionModule {
     //      .withBatchSize(200)
     //      .withMaxRetries(8)
     //      .build()
+
+    val graphWrites: DataStream[GraphWrite] =
+      GraphProjector.project(normalized, mentions, coOccurs, scored)
+    graphWrites.print()
+    env.execute("graphrag-ingestion")
 
     //    graphWrites.addSink(neo4jSink).name("neo4j-sink")
 
