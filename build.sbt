@@ -134,11 +134,11 @@ lazy val api = (project in file("modules/api"))
       "org.neo4j.driver"  %  "neo4j-java-driver" % "5.26.1"
     )
   )
-  .dependsOn(neo4j)   // you already have this module; lets you reuse config types if needed
+  .dependsOn(neo4j, core)   // you already have this module; lets you reuse config types if needed
 
 // ---------------- root aggregator ----------------
 lazy val root = (project in file("."))
-  .aggregate(core, ingestion, neo4j, llm)
+  .aggregate(core, ingestion, neo4j, llm, api)
   .dependsOn(core)
   .settings(
     name := "graphrag"
