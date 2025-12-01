@@ -1,6 +1,7 @@
 package helper
 
 import config._
+import helper.ConceptRelationshipMapping.CoOccur
 import ingestion.SourceStream.Chunk
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.streaming.api.scala.{DataStream, _}
@@ -68,9 +69,43 @@ object GraphProjector {
           )
       })
 
+
+    val mentionEdges: DataStream[GraphWrite] =
+      mentions.map(new MapFunction[Mention, GraphWrite] {
+        override def map(m: Mention): GraphWrite =
+          UpsertEdge(
+            fromLabel = "Chunk",
+            fromId    = m.chunkId,
+            rel       = "MENTIONS",
+            toLabel   = "Concept",
+            toId      = m.concept.conceptId,
+            props     = Map()
+          )
+      })
+
+
+    val coOccurEdges: DataStream[GraphWrite] =
+      coOccurs
+        .map(new MapFunction[CoOccur, GraphWrite] {
+          override def map(c: CoOccur): GraphWrite =
+            UpsertEdge(
+              fromLabel = "Concept",
+              fromId    = c.a.conceptId,
+              rel       = "CO_OCCURS",
+              toLabel   = "Concept",
+              toId      = c.b.conceptId,
+              props     = Map("freq" -> c.freq)
+            )
+        })
+        .name("co-occurs-edges")
+
+
+
     // Combine everything
     chunkNodes
       .union(conceptNodes)
+      .union(mentionEdges)
       .union(relationEdges)
+      .union(coOccurEdges)
   }
 }
