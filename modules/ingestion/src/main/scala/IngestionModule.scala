@@ -6,7 +6,7 @@ import SourceStream.Chunk
 import config.AppConfig.ollamaModel.baseUrl
 import config.{AppConfig, GraphWrite, Mention, RelationCandidate, ScoredRelation}
 import helper.ConceptRelationshipMapping.CoOccur
-import helper.{ConceptMapping, ConceptRelationshipMapping, GraphProjector, Normalize}
+import helper.{ConceptMapping, ConceptRelationshipMapping, GraphProjector, GraphUpsert, Neo4jGraphSink, Normalize}
 import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.functions.KeySelector
@@ -40,6 +40,8 @@ object IngestionModule {
     // 1) Scala environment
     val env: StreamExecutionEnvironment =
       StreamExecutionEnvironment.getExecutionEnvironment
+
+//    env.setParallelism(1)
 
 
     val chunks: DataStream[Chunk] =
@@ -184,30 +186,26 @@ object IngestionModule {
 
 
 
-    //      val graphWrites = GraphProjector.project(normalized)
-
-    println("Print Chunks")
-
-
-//    graphWrites.print()
-//
-//    val neo4jCfg = Neo4jConfig(
-//      uri = AppConfig.Neo4jConfig.uri,
-//      user = AppConfig.Neo4jConfig.user,
-//      password = AppConfig.Neo4jConfig.password,
-//      database = AppConfig.Neo4jConfig.database
-//    )
-
-    //    val neo4jSink = neo4jSink
-    //      .builder[GraphWrite]("bolt://neo4j:7687", "neo4j", sys.env("NEO4J_PASS"))
-    //      .withUpsertMapper(GraphUpsert.mapper)
-    //      .withBatchSize(200)
-    //      .withMaxRetries(8)
-    //      .build()
+    val neo4jSink = new Neo4jGraphSink(
+      AppConfig.Neo4jConfig.uri,
+      AppConfig.Neo4jConfig.user,
+      AppConfig.Neo4jConfig.password
+    )
 
     val graphWrites: DataStream[GraphWrite] =
       GraphProjector.project(normalized, mentions, coOccurs, scored)
     graphWrites.print()
+
+    graphWrites
+      .addSink(neo4jSink)
+      .name("neo4j-sink")
+
+
+//
+
+
+
+    println("Finish Program")
     env.execute("graphrag-ingestion")
 
     //    graphWrites.addSink(neo4jSink).name("neo4j-sink")

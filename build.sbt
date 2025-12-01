@@ -9,8 +9,8 @@ ThisBuild / version      := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.18"
 
 val flinkVersion        = "1.20.0"
-val neo4jDriverVersion  = "4.4.18"
 val parquetVersion      = "1.13.1"
+lazy val neo4jDriverVersion = "5.25.0"
 
 // ---------------- core ----------------
 lazy val core = (project in file("modules/core"))
@@ -48,7 +48,9 @@ lazy val neo4j = (project in file("modules/neo4j"))
     libraryDependencies ++= Seq(
       "org.apache.flink" % "flink-java"           % flinkVersion,
       "org.apache.flink" % "flink-streaming-java" % flinkVersion,
-      "org.apache.flink" % "flink-clients"        % flinkVersion
+      "org.apache.flink" % "flink-clients"        % flinkVersion,
+      // Neo4j Java driver
+      "org.neo4j.driver"   % "neo4j-java-driver" % neo4jDriverVersion,
     )
   )
 
@@ -92,6 +94,8 @@ lazy val ingestion = (project in file("modules/ingestion"))
       "org.apache.flink" % "flink-streaming-java" % flinkVersion,
       "org.apache.flink" % "flink-clients"        % flinkVersion,
       "org.apache.flink" %% "flink-streaming-scala" % flinkVersion,
+      "org.neo4j.driver" % "neo4j-java-driver" % "5.25.0",
+//      "org.apache.flink" %% "flink-connector-neo4j" % "1.0.0-1.17",
 
       // Scala API (provided, because Flink cluster already has it)
 //      "org.apache.flink" % "flink-streaming-scala_2.12" % flinkVersion % "provided",
@@ -101,13 +105,36 @@ lazy val ingestion = (project in file("modules/ingestion"))
       "org.apache.parquet" % "parquet-column" % parquetVersion,
       "org.apache.hadoop"  % "hadoop-client"  % "3.3.6",
 
-      // Neo4j Java driver
-      "org.neo4j.driver"   % "neo4j-java-driver" % neo4jDriverVersion,
+
 
       // Tests
       "org.scalatest" %% "scalatest" % "3.2.19" % Test
     )
   )
+
+
+
+// ---------------- API ----------------------------------------------
+lazy val api = (project in file("modules/api"))
+  .settings(
+    name := "graphrag-api",
+    libraryDependencies ++= Seq(
+      // Akka core + streams (Scala 2.12 artifacts)
+      "com.typesafe.akka" %% "akka-actor"   % "2.6.21",
+      "com.typesafe.akka" %% "akka-stream"  % "2.6.21",
+
+      // Akka HTTP for REST endpoints
+      "com.typesafe.akka" %% "akka-http"    % "10.2.10",
+
+      // JSON
+      "io.spray"          %% "spray-json"   % "1.3.6",
+      "com.typesafe.akka" %% "akka-http-spray-json" % "10.2.10",
+
+      // Neo4j Java driver (no Scala cross-versioning)
+      "org.neo4j.driver"  %  "neo4j-java-driver" % "5.26.1"
+    )
+  )
+  .dependsOn(neo4j)   // you already have this module; lets you reuse config types if needed
 
 // ---------------- root aggregator ----------------
 lazy val root = (project in file("."))
