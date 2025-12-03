@@ -171,7 +171,7 @@ sbt -java-home <java version directory path in computer (deferably java 21)> "ap
 The server listens at `http://localhost:8080/v1/` with key endpoints:
 
 - `GET /v1/evidence/{chunkId}` – Evidence lookup
-- `GET /v1/graph/concept/{id}/neighbors` – Concept neighborhood
+- `GET /v1/graph/concept/{conceptId}/neighbors` – Concept neighborhood
 - `POST /v1/query` – Semantic query (sync)
 - `POST /v1/query?mode=async` – Async job submission
 
