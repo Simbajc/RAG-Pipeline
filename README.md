@@ -201,13 +201,14 @@ Key specs: `ConceptRelationshipMappingTest`, `GraphProjectorSpec`, `RelationScor
 1) Build the shaded JAR:
 
 ```bash
-sbt clean assembly
+sbt "project ingestion" clean assembly
 ```
 
 2) Launch the Flink job:
 
 ```bash
-./flink/bin/flink run -c ingestion.IngestionModule graphrag-ingestion-assembly.jar
+    cd ~/flink-1.20.0
+   ./bin/flink run -c ingestion.IngestionModule   /mnt/c/Users/Simba/IdeaProjects/CS441_HW3/modules/ingestion/target/scala-2.12/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
 ```
 
 3) Start the API server:
