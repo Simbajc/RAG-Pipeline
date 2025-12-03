@@ -1,7 +1,9 @@
 package helper
 import config.{Concept, Mention}
+import ingestion.IngestionModule.getClass
 import llModels.{Ask, Ollama}
 import ingestion.SourceStream.Chunk
+import org.slf4j.LoggerFactory
 
 import scala.util.Try
 
@@ -43,6 +45,7 @@ import scala.util.Try
  *       .name("concept-heuristics")
  */
 object ConceptMapping {
+  private val log = LoggerFactory.getLogger(getClass)
 
   /**
    * Heuristic extractor – VERY SIMPLE version for homework.
@@ -57,6 +60,7 @@ object ConceptMapping {
    *   flatMap(ConceptStage.extractHeuristic)
    */
   def extractHeuristic(c: Chunk): Iterable[Mention] = {
+    log.info("start extracting Heuristic")
     val text = Option(c.text).getOrElse("")
 
     // Very naive tokenization: split on non-word characters
@@ -104,13 +108,14 @@ object ConceptMapping {
    * This is designed to be best-effort: if the LLM call fails or returns
    * garbage, we simply return no mentions for that chunk.
    */
-  def extractWithLLM(endpoint: String): Chunk => Iterable[Mention] =
+  def extractWithLLM(endpoint: String): Chunk => Iterable[Mention] = {
+    log.info("Start extracting core concept of text")
     (c: Chunk) => {
-      println(s"[LLM CALLED] chunkId=${c.chunkId}")
+      log.info(s"[LLM CALLED] chunkId=${c.chunkId}")
 
       val text = Option(c.text).getOrElse("").trim
       if (text.isEmpty) {
-        println(s"[LLM SKIP] chunkId=${c.chunkId}: empty text")
+        log.info(s"[LLM SKIP] chunkId=${c.chunkId}: empty text")
         Iterable.empty[Mention]
       } else {
         // normal path: call Ollama, build mentions
@@ -126,11 +131,11 @@ object ConceptMapping {
         val maybeRaw: Option[String] =
           Try(Ask.ask(client, question, text)).fold(
             ex => {
-              println(s"[LLM ERROR] chunkId=${c.chunkId}: ${ex.getMessage}")
+              log.info(s"[LLM ERROR] chunkId=${c.chunkId}: ${ex.getMessage}")
               None
             },
             raw => {
-              println(s"[LLM RAW] chunkId=${c.chunkId}: " + raw.take(200))
+              log.info(s"[LLM RAW] chunkId=${c.chunkId}: " + raw.take(200))
               Some(raw)
             }
           )
@@ -149,7 +154,7 @@ object ConceptMapping {
                   .filter(_.nonEmpty)
 
               if (lines.isEmpty) {
-                println(s"[LLM PARSE] chunkId=${c.chunkId}: no non-empty lines")
+                log.info(s"[LLM PARSE] chunkId=${c.chunkId}: no non-empty lines")
               }
 
               lines.distinct.map { phrase =>
@@ -170,12 +175,13 @@ object ConceptMapping {
               }
             }
 
-        println(
+        log.info(
           s"[LLM RESULT] chunkId=${c.chunkId}, size=${mentions.size}, sample=${mentions.take(3).mkString(", ")}"
         )
 
         mentions
       }
     }
+  }
 
 }

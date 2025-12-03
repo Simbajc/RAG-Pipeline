@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: ollama
+  namespace: graphrag          # <--- add this
 spec:
   selector:
     matchLabels:
@@ -14,5 +15,22 @@ spec:
       containers:
         - name: ollama
           image: ollama/ollama:latest
+          resources:
+            requests:
+              memory: "5Gi"
+              cpu: "1"
+            limits:
+              memory: "5Gi"
+              cpu: "2"
           ports:
             - containerPort: 11434
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    echo "Pulling models..." \
+                    && ollama pull llama3:instruct \
+                    && ollama pull nomic-embed-text:latest

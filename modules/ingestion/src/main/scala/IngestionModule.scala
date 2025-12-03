@@ -10,25 +10,8 @@ import helper.{ConceptMapping, ConceptRelationshipMapping, GraphProjector, Graph
 import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.functions.KeySelector
+import org.slf4j.LoggerFactory
 
-
-
-//import org.apache.flink.api.common.typeinfo.{TypeHint, TypeInformation}
-//import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, DataStream, _}
-//import SourceStream.Chunk
-import org.apache.flink.api.common.typeinfo.TypeInformation
-//import org.apache.flink.streaming.api.scala._
-
-//import org.apache.flink.streaming.api.functions.ProcessFunction
-//import config.{AppConfig, Concept, GraphWrite, Mention, RelationCandidate, ScoredRelation}
-//import helper.{ConceptMapping, ConceptRelationshipMapping, GraphProjector,  Normalize}
-//Neo4jConfig, Neo4jGraphSink,
-//import helper.ConceptRelationshipMapping.CoOccur
-//import llModels.{Ask, Ollama}
-//import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
-//import org.apache.flink.util.Collector
-//import helper.Quality
-//import scala.collection.JavaConverters._
 
 
 
@@ -36,21 +19,26 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 /** Entry point for the ingestion module. */
 object IngestionModule {
 
+  private val log = LoggerFactory.getLogger(getClass)
+
   def main(args: Array[String]): Unit = {
     // 1) Scala environment
     val env: StreamExecutionEnvironment =
       StreamExecutionEnvironment.getExecutionEnvironment
 
-//    env.setParallelism(1)
+    env.setParallelism(1)
+    println("Start Program")
 
 
+    println("Start Chunking")
     val chunks: DataStream[Chunk] =
       SourceStream
         .build(env) // <-- whatever helper you wrote
         .name("chunks-from-parquet")
 
     chunks.print("chunks-from-parquet")
-
+    println("Finish Chunking")
+    log.info("Finish Chunking")
 
 
     // 2) TypeInformation for Chunk (Scala 2.12)
@@ -68,11 +56,12 @@ object IngestionModule {
           "file://local-test/doc2", "h2")
       )
 
+    println("Start Normalization")
     // 4) Optional normalize stage (still produces Chunk)
     // 3) Use an explicit MapFunction – NO Scala lambda
     val normalized: DataStream[Chunk] = {
-//      chunks
-      testChunks
+      chunks
+//      testChunks
         .map(new MapFunction[Chunk, Chunk] {
           override def map(value: Chunk): Chunk =
             Normalize.cleanAndTag(value)
@@ -82,11 +71,14 @@ object IngestionModule {
 
     // 5) At least one sink
     normalized.print("normalized")
+    println("Finish Normalization")
+    log.info("Finish Normalization")
 
     // 6) Exactly one execute, at the very end
 
 
 
+    println("Start heuristic")
     // 2) heuristic mentions
     val heuristicMentions: DataStream[Mention] =
       normalized
@@ -100,6 +92,9 @@ object IngestionModule {
         .name("concept-heuristics")
 
     heuristicMentions.print("heuristic")
+    println("Finish heuristic")
+
+    log.info("Finish Heuristic")
 
 
 
@@ -107,7 +102,12 @@ object IngestionModule {
 //      TypeInformation.of(classOf[RelationCandidate])
         // Get the text chunk overall main concept
 
-    val ollamaEndpoint: String = "http://127.0.0.1:11434" // or "http://localhost:11434"
+//    val ollamaEndpoint: String = "http://127.0.0.1:11434" // or "http://localhost:11434"
+
+    val ollamaEndpoint: String =
+      sys.env.getOrElse("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+
+
 
     val llmMentions: DataStream[Mention] =
       normalized
@@ -122,6 +122,8 @@ object IngestionModule {
 
     llmMentions.print("llm-mentions")
 
+    log.info("Finish llm-mentions")
+
 
 
     // Aim is to unionize the grouping of similar words and the overall concept of the chunks
@@ -133,6 +135,7 @@ object IngestionModule {
       .print("all-mentions")
       .name("all-mentions-sink")
 
+    log.info("Finish all-mentions-sink")
 
 
 
@@ -152,6 +155,8 @@ object IngestionModule {
 
     coOccurs.print("co-occurs")
 
+    log.info("Finish CoOccurs")
+
 //    println("Cocurence is Passing")
 //    env.execute("graphrag-ingestion")
 
@@ -163,6 +168,8 @@ object IngestionModule {
 
 
     candidates.print("relation-candidates")
+
+    log.info("Finish relationsal-canidates")
 
 //    println("Cocurence is Passing")
 
@@ -184,6 +191,8 @@ object IngestionModule {
         .name("relation-scoring")
     scored.print("relation-scoring")
 
+    log.info("Finish Relation-Scoring")
+
 
 
     val neo4jSink = new Neo4jGraphSink(
@@ -200,34 +209,17 @@ object IngestionModule {
       .addSink(neo4jSink)
       .name("neo4j-sink")
 
+    log.info("Finish neo4j-sink")
 
-//
 
 
 
     println("Finish Program")
     env.execute("graphrag-ingestion")
 
-    //    graphWrites.addSink(neo4jSink).name("neo4j-sink")
-
-//    val neo4jSink = new Neo4jGraphSink(neo4jCfg)
-//
-//    val writesWithMetrics = Quality.attachMetrics(graphWrites)
-//
-//    writesWithMetrics
-//      .addSink(neo4jSink)
-//      .name("neo4j-sink")
+    log.info("Finish Program")
 
 
-
-    //    graphWrites
-    //      .addSink(neo4jSink)
-    //      .name("neo4j-sink")
-
-
-//    env.execute("graphrag-ingestion")
-
-    //    Quality.attachMetrics(env, writes
 
 
 

@@ -4,12 +4,16 @@ metadata:
   name: graphrag-ingestion
   namespace: graphrag
 spec:
-  image: flink:1.20.0-scala_2.12-java11
+  flinkVersion: v1_19
+#  image: flink:1.20.0-scala_2.12-java11
+#  image: flink:1.19.1-scala_2.12-java11
+  image: simbajc29/graphrag-flink:1.19-java17
   flinkConfiguration:
     taskmanager.numberOfTaskSlots: "2"
   serviceAccount: flink
   job:
-    jarURI: s3://cs441-hw3-bucket/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
+#    jarURI: s3://retrieval-index-chinomona/jarFiles/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
+    jarURI: local:///opt/flink/usrlib/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
     entryClass: ingestion.IngestionModule
     args:
       - "--mode"
