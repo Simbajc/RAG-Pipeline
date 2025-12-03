@@ -77,7 +77,7 @@ Run the Flink job locally to construct the Neo4j concept graph:
 Start the REST API (Part 2):
 
 ```bash
-sbt -java-home <java version directory in computer (deferably java 21)> "api/runMain api.ApiServer"
+sbt -java-home <java version directory path in computer (deferably java 21)> "api/runMain api.ApiServer"
 ```
 
 The server listens at `http://localhost:8080/v1/` with key endpoints:
