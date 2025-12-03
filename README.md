@@ -65,13 +65,96 @@ sbt clean compile
 ```
 
 ## Flink Ingestion Pipeline
-Run the Flink job locally to construct the Neo4j concept graph:
 
-```bash
-./flink/bin/flink run \
-  -c ingestion.IngestionModule \
-  modules/ingestion/target/scala-2.12/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
-```
+To run the ingestion pipeline locally with Flink, follow these steps.
+
+### 1) Install / Download Flink
+
+1. Go to the Apache Flink download page and download a **binary release** compatible with Scala 2.12 (e.g., Flink 1.20.x, Scala 2.12 build).
+2. Extract it somewhere on your machine, for example:
+
+   - On Linux / WSL: `/home/<user>/flink-1.20.0`
+   - On Windows: `C:\tools\flink-1.20.0`
+
+3. Optionally set `FLINK_HOME` and add it to your `PATH`:
+
+   ```bash
+   export FLINK_HOME=/home/<user>/flink-1.20.0
+   export PATH="$FLINK_HOME/bin:$PATH"
+### 2) — Install / Download Docker
+
+1. If you do not already have Docker installed:
+
+- **Windows / Mac:**  
+  https://www.docker.com/products/docker-desktop/
+
+- **Linux:**  
+  ```bash
+  sudo apt-get update
+  sudo apt-get install docker.io -y
+### 3) — Run Docker
+
+1. Run this docker which hold neo4j locally:
+   ```bash
+   docker run -d \
+    --name neo4j \
+    -p 7474:7474 -p 7687:7687 \
+    -e NEO4J_AUTH=neo4j/password \
+    -e NEO4J_PLUGINS='["apoc"]' \
+    -e NEO4J_dbms_security_procedures_unrestricted="apoc.*" \
+    -e NEO4J_dbms_security_procedures_allowlist="apoc.*" \
+    -v $HOME/neo4j/data:/data \
+    -v $HOME/neo4j/plugins:/plugins \
+    neo4j:5
+   ```
+ 2. Verify its running
+    Open Neo4j Browser:
+      ```bash
+        http://localhost:7474
+      ```
+    Login using:
+      - Username: neo4j
+      - Password: password (from the NEO4J_AUTH variable)
+   
+### 4) — Run Flink
+  1. Change into the Flink directory:
+     ```bash
+     cd ~/flink-1.20.0
+     ```
+  2. Configure Flink File
+     ```bash
+      1) nano ~/flink-1.20.0/conf/flink-conf.yaml
+      2) Configuration File Replacement
+         # Where JobManager runs
+          jobmanager.rpc.address: localhost
+          
+          # REST endpoint config
+          rest.address: localhost
+          rest.port: 8081
+          rest.bind-address: 0.0.0.0
+          
+          # JobManager memory
+          jobmanager.memory.process.size: 1024m   # 1 GB is fine locally
+          
+          # TaskManager memory – INCREASED
+          taskmanager.memory.process.size: 4096m  # 4 GB; lower to 2048m if your machine complains
+          
+          taskmanager.numberOfTaskSlots: 4
+          
+          # JVM options – add module opens so Kryo/Chill can use reflection
+          env.java.opts: --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED
+     ```
+       
+  3. Restart the cluster to ensure a clean state:
+     ```bash
+        bin/stop-cluster.sh || true
+        bin/start-cluster.sh
+      ```
+  4. Run assembled Jar file in the cluster. Run the Flink job locally to construct the Neo4j concept graph ( You must be in the flink directory in your computer)
+     ```bash
+         sbt "project ingestion" clean assembly
+        ./bin/flink run -c ingestion.IngestionModule   /mnt/c/Users/Simba/IdeaProjects/CS441_HW3/modules/ingestion/target/scala-2.12/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
+      ```
 
 ## API Service
 Start the REST API (Part 2):
