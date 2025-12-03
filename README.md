@@ -128,7 +128,9 @@ sbt clean assembly
 sbt "project api" run
 ```
 
-## AWS EKS Deployment (Optional)
+## AWS EKS Deployment
+An **EKS cluster is required** for the provided deployment assets. The manifests below cover the core services, but you may need to supplement them with cluster-specific networking (ingress, load balancers) depending on your setup.
+
 Apply manifests in order:
 
 ```bash
