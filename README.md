@@ -25,8 +25,7 @@ GraphRAG builds a streaming knowledge graph (Part 1) and exposes a REST API for 
 - `core/`: Domain models, config loader, logging utilities
 - `llm/`: Ollama client, prompt builders, JSON scorers
 - `ingestion/`: Flink job, concept extraction, co-occurrence, relation scoring, graph projection
-- `neo4j-write/`: Flink sink with idempotent Neo4j MERGE logic
-- `neo4j-read/`: Evidence queries, neighborhood exploration, semantic search helpers
+- `neo4j/`: Evidence queries, neighborhood exploration, semantic search helpers, Flink sink with idempotent Neo4j MERGE logic
 - `api/`: Akka HTTP API (query, jobs, evidence, explain)
 
 ### Walkthrough link
