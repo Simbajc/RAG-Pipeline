@@ -16,7 +16,10 @@ import org.slf4j.LoggerFactory
 
 
 
-/** Entry point for the ingestion module. */
+/** Entry point for the ingestion module.
+ *
+ * Entry Point to the entire application
+ * */
 object IngestionModule {
 
   private val log = LoggerFactory.getLogger(getClass)
@@ -96,11 +99,6 @@ object IngestionModule {
 
     log.info("Finish Heuristic")
 
-
-
-//    implicit val relationCandidateTypeInfo: TypeInformation[RelationCandidate] =
-//      TypeInformation.of(classOf[RelationCandidate])
-        // Get the text chunk overall main concept
 
 //    val ollamaEndpoint: String = "http://127.0.0.1:11434" // or "http://localhost:11434"
 
