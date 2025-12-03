@@ -44,8 +44,8 @@ GraphRAG builds a streaming knowledge graph (Part 1) and exposes a REST API for 
 Required Ollama models:
 
 ```bash
-ollama pull llama3.1
-ollama pull mxbai-embed-large
+ollama pull llama3.2:3b
+ollama pull llama3:instruct
 ```
 
 ## Setup
