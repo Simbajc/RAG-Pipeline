@@ -29,6 +29,11 @@ GraphRAG builds a streaming knowledge graph (Part 1) and exposes a REST API for 
 - `neo4j-read/`: Evidence queries, neighborhood exploration, semantic search helpers
 - `api/`: Akka HTTP API (query, jobs, evidence, explain)
 
+### Walkthrough link
+```text
+https://youtu.be/Jv6bz1AcyqI
+```
+
 ## Prerequisites
 
 | Component | Version | Notes |
