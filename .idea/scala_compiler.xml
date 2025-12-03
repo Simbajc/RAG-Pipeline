@@ -2,6 +2,6 @@
 <project version="4">
   <component name="ScalaCompilerConfiguration">
     <option name="separateProdTestSources" value="true" />
-    <profile name="sbt 1" modules="CS441_HW3,CS441_HW3.main,CS441_HW3.test,graphrag,graphrag.graphrag-core,graphrag.graphrag-core.main,graphrag.graphrag-core.test,graphrag.graphrag-ingestion,graphrag.graphrag-ingestion.main,graphrag.graphrag-ingestion.test,graphrag.graphrag-llm,graphrag.graphrag-llm.main,graphrag.graphrag-llm.test,graphrag.graphrag-neo4j,graphrag.graphrag-neo4j.main,graphrag.graphrag-neo4j.test,graphrag.main,graphrag.test" />
+    <profile name="sbt 1" modules="CS441_HW3,CS441_HW3.main,CS441_HW3.test,api,api.main,api.test,graphrag,graphrag.graphrag-api,graphrag.graphrag-api.main,graphrag.graphrag-api.test,graphrag.graphrag-core,graphrag.graphrag-core.main,graphrag.graphrag-core.test,graphrag.graphrag-ingestion,graphrag.graphrag-ingestion.main,graphrag.graphrag-ingestion.test,graphrag.graphrag-llm,graphrag.graphrag-llm.main,graphrag.graphrag-llm.test,graphrag.graphrag-neo4j,graphrag.graphrag-neo4j.main,graphrag.graphrag-neo4j.test,graphrag.main,graphrag.test" />
   </component>
 </project>

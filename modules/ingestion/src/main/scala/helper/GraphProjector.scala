@@ -1,10 +1,12 @@
 package helper
 
 import config._
+import helper.ConceptMapping.getClass
 import helper.ConceptRelationshipMapping.CoOccur
 import ingestion.SourceStream.Chunk
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.streaming.api.scala.{DataStream, _}
+import org.slf4j.LoggerFactory
 
 object GraphProjector {
 
@@ -15,13 +17,14 @@ object GraphProjector {
    * 2) Concept nodes
    * 3) Scored relations → edges
    */
+  private val log = LoggerFactory.getLogger(getClass)
   def project(
                chunks: DataStream[Chunk],
                mentions: DataStream[Mention],
                coOccurs: DataStream[ConceptRelationshipMapping.CoOccur],
                scored: DataStream[ScoredRelation]
              ): DataStream[GraphWrite] = {
-
+    log.info("Start projecting data into the graph, (chunk nodes, concepts, relational edges, mention edges")
     val chunkNodes: DataStream[GraphWrite] =
       chunks.map(new MapFunction[Chunk, GraphWrite] {
         override def map(c: Chunk): GraphWrite =
@@ -100,7 +103,7 @@ object GraphProjector {
         .name("co-occurs-edges")
 
 
-
+    log.info("start merging data to one graph")
     // Combine everything
     chunkNodes
       .union(conceptNodes)

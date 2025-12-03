@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ScalaSbtSettings">
+    <option name="customVMPath" value="$PROJECT_DIR$/../../../../Program Files/Java/jdk-21" />
     <option name="linkedExternalProjectsSettings">
       <SbtProjectSettings>
         <option name="converterVersion" value="2" />
@@ -8,6 +9,7 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/modules/api" />
             <option value="$PROJECT_DIR$/modules/core" />
             <option value="$PROJECT_DIR$/modules/ingestion" />
             <option value="$PROJECT_DIR$/modules/llm" />
@@ -16,7 +18,16 @@
           </set>
         </option>
         <option name="sbtVersion" value="1.11.7" />
-        <option name="separateProdAndTestSourcesIsExplicit" value="true" />
+      </SbtProjectSettings>
+      <SbtProjectSettings>
+        <option name="converterVersion" value="2" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/api" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/api" />
+            <option value="$PROJECT_DIR$/api/project" />
+          </set>
+        </option>
       </SbtProjectSettings>
     </option>
   </component>

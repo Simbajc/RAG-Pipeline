@@ -1,11 +1,14 @@
 package helper
 
+import helper.ConceptMapping.getClass
 import ingestion.SourceStream.Chunk
+import org.slf4j.LoggerFactory
 
 object Normalize {
-
+  private val log = LoggerFactory.getLogger(getClass)
   /** Top-level function used in the Flink pipeline. */
   def cleanAndTag(c: Chunk): Chunk = {
+    log.info("start cleaning chunks")
     // 1) Normalize whitespace in the chunk text
     val cleanedText = normalizeWhitespace(c.text)
 

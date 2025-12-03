@@ -1,3 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: graphrag-config
+  namespace: graphrag
+data:
+  application.conf: |
+    # Minimal config for GraphRAG ingestion; not yet wired to CMD
+    neo4j {
+      uri      = "bolt://neo4j-db:7687"
+      user     = "neo4j"
+      password = "password"
+    }
+
+    ollama {
+      baseUrl = "http://ollama:11434"
+    }
+
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -10,24 +29,22 @@ spec:
       restartPolicy: Never
       containers:
         - name: graphrag-ingestion
-          image: simbajc29/graphrag-ingestion:latest
+          image: 251819893171.dkr.ecr.us-east-1.amazonaws.com/graphrag-flink:v11
           imagePullPolicy: Always
           env:
             - name: NEO4J_URI
-              value: "bolt://neo4j:7687"
+#              value: "bolt://neo4j-db:7687"
+              value: "bolt://neo4j-db.default.svc.cluster.local:7687"
             - name: NEO4J_USER
               value: "neo4j"
-            - name: NEO4J_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: neo4j-auth
-                  key: neo4j-password
+            - name: NEO4J_PASSWORD
+              value: "password"
             - name: OLLAMA_BASE_URL
               value: "http://ollama:11434"
-          # If your IngestionModule takes CLI args like --config:
-          args:
-            - "--config"
-            - "/etc/job-config/application.conf"
+            - name: JAVA_TOOL_OPTIONS
+              value: "--add-opens=java.base/java.util=ALL-UNNAMED"
+          # IMPORTANT: no args here; we let the Dockerfile CMD run:
+          # flink run -c ingestion.IngestionModule ...
           volumeMounts:
             - name: job-config
               mountPath: /etc/job-config

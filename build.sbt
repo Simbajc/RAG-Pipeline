@@ -11,11 +11,13 @@ ThisBuild / scalaVersion := "2.12.18"
 val flinkVersion        = "1.20.0"
 val parquetVersion      = "1.13.1"
 lazy val neo4jDriverVersion = "5.25.0"
+lazy val hadoopVersion = "3.3.6"
 
 // ---------------- core ----------------
 lazy val core = (project in file("modules/core"))
   .settings(
     name := "graphrag-core",
+    assembly / skip := true,
     libraryDependencies += "com.typesafe" % "config" % "1.4.3"
   )
 
@@ -24,6 +26,7 @@ lazy val llm = (project in file("modules/llm"))
   .dependsOn(core)
   .settings(
     name := "graphrag-llm",
+    assembly / skip := true,
     libraryDependencies ++= Seq(
       // Config
       "com.typesafe" % "config" % "1.4.3",
@@ -45,6 +48,7 @@ lazy val neo4j = (project in file("modules/neo4j"))
   .dependsOn(core)
   .settings(
     name := "graphrag-neo4j",
+    assembly / skip := true,
     libraryDependencies ++= Seq(
       "org.apache.flink" % "flink-java"           % flinkVersion,
       "org.apache.flink" % "flink-streaming-java" % flinkVersion,
@@ -60,7 +64,7 @@ lazy val ingestion = (project in file("modules/ingestion"))
   .dependsOn(core, llm, neo4j)
   .settings(
     name := "graphrag-ingestion",
-
+    assembly / skip := false,
     assembly / mainClass := Some("ingestion.IngestionModule"),
     assembly / test := {},
 
@@ -108,7 +112,12 @@ lazy val ingestion = (project in file("modules/ingestion"))
 
 
       // Tests
-      "org.scalatest" %% "scalatest" % "3.2.19" % Test
+      "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+
+
+      // added to kubernetese
+      "org.apache.hadoop" % "hadoop-aws" % hadoopVersion,
+      "com.amazonaws"     % "aws-java-sdk-bundle" % "1.11.1026"
     )
   )
 
@@ -118,6 +127,7 @@ lazy val ingestion = (project in file("modules/ingestion"))
 lazy val api = (project in file("modules/api"))
   .settings(
     name := "graphrag-api",
+    assembly / skip := true,
     libraryDependencies ++= Seq(
       // Akka core + streams (Scala 2.12 artifacts)
       "com.typesafe.akka" %% "akka-actor"   % "2.6.21",
@@ -134,12 +144,14 @@ lazy val api = (project in file("modules/api"))
       "org.neo4j.driver"  %  "neo4j-java-driver" % "5.26.1"
     )
   )
-  .dependsOn(neo4j)   // you already have this module; lets you reuse config types if needed
+  .dependsOn(neo4j, core)   // you already have this module; lets you reuse config types if needed
 
 // ---------------- root aggregator ----------------
 lazy val root = (project in file("."))
-  .aggregate(core, ingestion, neo4j, llm)
+  .aggregate(core, ingestion, neo4j, llm, api)
   .dependsOn(core)
   .settings(
-    name := "graphrag"
+    name := "graphrag",
+    assembly / aggregate := false,
+    assembly := (ingestion / assembly).value
   )

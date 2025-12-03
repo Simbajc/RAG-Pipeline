@@ -3,6 +3,7 @@ package helper
 //import model.{Mention, Concept, CoOccur}  // adjust to your actual package
 
 import config.{Concept, Mention, RelationCandidate}
+import helper.ConceptMapping.getClass
 import helper.ConceptRelationshipMapping.CoOccur
 import ingestion.SourceStream.Chunk
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
@@ -13,21 +14,13 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.util.Collector
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.slf4j.LoggerFactory
 
 
 //import scala.jdk.CollectionConverters.*
 import scala.collection.JavaConverters._
 
 
-//final case class RelationCandidate(a: Concept, b: Concept, evidence: String)
-//
-//final case class ScoredRelation(
-//                                 a: Concept,
-//                                 predicate: String,
-//                                 b: Concept,
-//                                 confidence: Double,
-//                                 evidence: String
-//                               )
 
 
 
@@ -36,6 +29,8 @@ import scala.collection.JavaConverters._
 
 
 object ConceptRelationshipMapping {
+
+  private val log = LoggerFactory.getLogger(getClass)
 
   implicit val relationCandidateTypeInfo: TypeInformation[RelationCandidate] =
     TypeInformation.of(classOf[RelationCandidate])
@@ -52,8 +47,10 @@ object ConceptRelationshipMapping {
    *     2) trims buffer to last `windowSize`,
    *     3) emits all unordered pairs from that window as CoOccur(a,b,windowId,freq=1).
    */
-  def localCoOccurrence(windowSize: Int): KeyedProcessFunction[String, Mention, CoOccur] =
+  def localCoOccurrence(windowSize: Int): KeyedProcessFunction[String, Mention, CoOccur] = {
+    log.info("get local coccurenices")
     new KeyedProcessFunction[String, Mention, CoOccur] {
+
 
       private var bufferState: ListState[Mention] = _
 
@@ -73,11 +70,6 @@ object ConceptRelationshipMapping {
         // 1) Append new mention to buffer
         val current = bufferState.get().asScala.toList :+ value
 
-//        val current: List[RelationCandidateMention] =
-//          Option(bufferState.get()).getOrElse(List.empty[RelationCandidateMention])
-//
-//        val updated = current :+ value
-//        bufferState.update(updated)
 
         // 2) Keep only last `windowSize` mentions
         val window = current.takeRight(windowSize)
@@ -101,6 +93,7 @@ object ConceptRelationshipMapping {
           }
       }
     }
+  }
 
 
   /** Pure version of the local co-occurrence logic for a single chunk.
@@ -111,6 +104,7 @@ object ConceptRelationshipMapping {
                                 windowSize: Int
                               ): Seq[CoOccur] = {
     val buf = scala.collection.mutable.ListBuffer.empty[CoOccur]
+    log.info("Get the local co-occurnecies based on the a single chunk")
 
     for {
       (m, i) <- mentions.zipWithIndex

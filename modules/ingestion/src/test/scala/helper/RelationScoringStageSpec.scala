@@ -3,9 +3,10 @@ package ingestion
 import org.scalatest.funsuite.AnyFunSuite
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.util.Collector
+import org.apache.flink.configuration.Configuration
+
 
 import config.{AppConfig, Concept, RelationCandidate, ScoredRelation}
-import llModels.Ollama
 
 class RelationScoringStageSpec extends AnyFunSuite {
 
@@ -19,14 +20,19 @@ class RelationScoringStageSpec extends AnyFunSuite {
       evidence = "Aspirin is used to treat headaches."
     )
 
-    val client = new Ollama(AppConfig.ollamaModel.baseUrl)
+    // Use env override if present, otherwise config
+    val ollamaEndpoint: String =
+      sys.env.getOrElse("OLLAMA_BASE_URL", AppConfig.ollamaModel.baseUrl)
 
     val fn: ProcessFunction[RelationCandidate, ScoredRelation] =
       RelationScoringStage.withOllama(
-        client      = client,
+        baseUrl     = ollamaEndpoint,
         model       = AppConfig.ollamaModel.chatModel,
         temperature = 0.0
       )
+
+    // IMPORTANT: initialize Flink operator state (creates the Ollama client)
+    fn.open(new Configuration())
 
     val outBuffer = scala.collection.mutable.ListBuffer.empty[ScoredRelation]
 
@@ -38,7 +44,7 @@ class RelationScoringStageSpec extends AnyFunSuite {
 
     fn.processElement(
       candidate,
-      null,       // we are not using Context in this stage
+      null,       // no Context needed for this test
       collector
     )
 
@@ -53,7 +59,6 @@ class RelationScoringStageSpec extends AnyFunSuite {
     println(s"evidence   = ${scored.evidence}")
     println("=======================================")
 
-    // loose assertions so the test passes regardless of exact predicate
     assert(scored.predicate.nonEmpty)
     assert(scored.confidence >= 0.0 && scored.confidence <= 1.0)
   }

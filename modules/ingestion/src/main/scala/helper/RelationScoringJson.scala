@@ -1,10 +1,13 @@
 package helper
 
+import helper.ConceptMapping.getClass
+import org.slf4j.LoggerFactory
+
 import scala.util.Try
 import scala.util.matching.Regex
 
 object RelationScoringJson {
-
+  private val log = LoggerFactory.getLogger(getClass)
   /** Extract the JSON line from a possibly decorated/raw string. */
   private def extractJsonLine(raw: String): String =
     raw.linesIterator
