@@ -1,69 +1,55 @@
 # Graph-Based Retrieval-Augmented Generation (GraphRAG)
-### **CS 441 – Homework 3 Full Documentation**
-**Author:** Simbarashe Chinomona
 
-This document provides the **complete, unified architecture and documentation** for the CS441 HW3 GraphRAG system. It combines:
+Unified documentation for the CS 441 Homework 3 GraphRAG system by Simbarashe Chinomona. This guide combines architecture, prerequisites, and end-to-end workflows for both ingestion and API layers.
 
-- README  
-- Architecture description  
-- Module-by-module breakdown  
-- Interaction diagrams  
-- Part 1 ingestion pipeline  
-- Part 2 API service  
-- Prerequisites  
-- Deployment  
-- Troubleshooting  
-- Commands and workflow examples  
+## Table of Contents
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+- [Flink Ingestion Pipeline](#flink-ingestion-pipeline)
+- [API Service](#api-service)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Testing](#testing)
+- [End-to-End Workflow](#end-to-end-workflow)
+- [AWS EKS Deployment (Optional)](#aws-eks-deployment-optional)
 
-You may use this as a **single master documentation file** for your project.
+## Overview
+GraphRAG builds a streaming knowledge graph (Part 1) and exposes a REST API for graph exploration and semantic querying (Part 2). Core technologies include **Scala 2.12**, **Apache Flink**, **Neo4j**, **Ollama**, and **Akka HTTP**.
 
----
+### Architecture Snapshot
+- **Ingestion (Flink):** Chunk ingestion → concept extraction → co-occurrence → relation candidate generation → LLM scoring → graph projection → Neo4j upserts.
+- **API Service (Akka HTTP):** Evidence lookup, concept neighborhood exploration, semantic queries, async jobs, and explainability traces backed by `Neo4jReadClient`.
 
-# ============================================================
-# 1. PROJECT OVERVIEW
-# ============================================================
+### Module Guide
+- `core/`: Domain models, config loader, logging utilities
+- `llm/`: Ollama client, prompt builders, JSON scorers
+- `ingestion/`: Flink job, concept extraction, co-occurrence, relation scoring, graph projection
+- `neo4j-write/`: Flink sink with idempotent Neo4j MERGE logic
+- `neo4j-read/`: Evidence queries, neighborhood exploration, semantic search helpers
+- `api/`: Akka HTTP API (query, jobs, evidence, explain)
 
-This project implements a **Graph-based Retrieval-Augmented Generation (GraphRAG)** system using:
-
-- **Scala 2.12**
-- **Apache Flink (DataStream API)**
-- **Neo4j Graph Database**
-- **Ollama LLM runtime**
-- **Akka HTTP API (Part 2)**
-
-**Part 1** builds a **streaming knowledge graph** from document chunks.  
-**Part 2** exposes a full REST API for evidence lookup, graph exploration, and semantic query.
-
----
-
-# ============================================================
-# 2. PREREQUISITES & INSTALLATION
-# ============================================================
-
-## Required Software
+## Prerequisites
 
 | Component | Version | Notes |
-|----------|---------|-------|
+|-----------|---------|-------|
 | Scala | **2.12.x** | Required for Flink API compatibility |
 | sbt | **1.9+** | Build & test |
 | Java | **11 or 17** | Works with Flink & Neo4j |
 | Apache Flink | **1.17 – 1.20** | Local or cluster |
 | Neo4j | **5.x** | APOC enabled |
-| Ollama | Latest | Models pulled |
+| Ollama | Latest | Ensure required models are pulled |
 | Docker | Optional | For local Neo4j/Ollama |
 
----
-
-## Required Ollama Models
+Required Ollama models:
 
 ```bash
 ollama pull llama3.1
 ollama pull mxbai-embed-large
 ```
 
----
-
-## Environment Variables
+## Setup
+Set baseline environment variables:
 
 ```bash
 export OLLAMA_BASE_URL="http://localhost:11434"
@@ -72,17 +58,14 @@ export NEO4J_USER="neo4j"
 export NEO4J_PASSWORD="password"
 ```
 
----
-
-## Build Project
+Build the project:
 
 ```bash
 sbt clean compile
 ```
 
----
-
-## Run Flink Job (Local Mode)
+## Flink Ingestion Pipeline
+Run the Flink job locally to construct the Neo4j concept graph:
 
 ```bash
 ./flink/bin/flink run \
@@ -90,237 +73,63 @@ sbt clean compile
   modules/ingestion/target/scala-2.12/graphrag-ingestion-assembly-0.1.0-SNAPSHOT.jar
 ```
 
----
-
-## Run API Server (Part 2)
+## API Service
+Start the REST API (Part 2):
 
 ```bash
 sbt "project api" run
 ```
 
-Server starts at:
+The server listens at `http://localhost:8080/v1/` with key endpoints:
 
-**http://localhost:8080/v1/**
+- `GET /v1/evidence/{chunkId}` – Evidence lookup
+- `GET /v1/graph/concept/{id}/neighbors` – Concept neighborhood
+- `POST /v1/query` – Semantic query (sync)
+- `POST /v1/query?mode=async` – Async job submission
 
----
-
-# ============================================================
-# 3. HIGH-LEVEL SYSTEM ARCHITECTURE
-# ============================================================
-
-The GraphRAG system consists of two major parts:
-
----
-
-## PART 1 — **Flink Streaming Pipeline**
-Builds a Neo4j concept graph:
-
-1. **Chunk ingestion**
-2. **Concept extraction**  
-   • Heuristics  
-   • LLM-assisted extraction  
-3. **Co-occurrence analysis**
-4. **Relation candidate generation**
-5. **LLM scoring using Ollama**
-6. **Graph projection**
-7. **Idempotent upserts into Neo4j**
-
----
-
-## PART 2 — **REST API Service**
-Provides:
-
-- Evidence lookup  
-- Concept neighborhood expansion  
-- Semantic query  
-- Async job model  
-- Explainability traces  
-
-Powered by:
-
-- **Akka HTTP**
-- **Neo4jReadClient**
-
----
-
-# ============================================================
-# 4. ARCHITECTURE DIAGRAMS
-# ============================================================
-
-## 4.1 Full System Overview
-
-```
-                ┌──────────────────────────┐
-                │      API Server (Part 2) │
-                │  /v1/query, evidence...  │
-                └──────────┬───────────────┘
-                           │
-                   ┌───────▼────────┐
-                   │ Neo4jReadClient │
-                   └───────┬────────┘
-                           │ READS
-                           ▼
-                    ┌──────────────┐
-                    │    Neo4j     │
-                    │ Concept Graph│
-                    └──────┬───────┘
-                       WRITES ▲
-                              │
-              ┌───────────────┴────────────────┐
-              │   Flink Ingestion Pipeline     │
-              │  Concept → Relations → Graph   │
-              └───────────────┬────────────────┘
-                              │
-                      ┌───────▼───────┐
-                      │     LLM       │
-                      │   (Ollama)    │
-                      └───────────────┘
-```
-
----
-
-# ============================================================
-# 5. MODULE-BY-MODULE BREAKDOWN
-# ============================================================
-
-## 5.1 `core/`
-- Domain models  
-- Config loader  
-- Logging utilities  
-
-## 5.2 `llm/`
-- Ollama client  
-- Prompt builders  
-- JSON scorers  
-
-## 5.3 `ingestion/`
-- Flink job  
-- Concept extraction  
-- Co-occurrence  
-- Relation scoring  
-- Graph projection  
-
-## 5.4 `neo4j-write/`
-- Flink sink → Neo4j  
-- Idempotent MERGE logic  
-
-## 5.5 `neo4j-read/`
-- Evidence queries  
-- Neighborhood exploration  
-- Semantic search  
-
-## 5.6 `api/`
-- Akka HTTP API  
-- Endpoints: query, jobs, evidence, explain  
-
----
-
-# ============================================================
-# 6. FULL INGESTION PIPELINE
-# ============================================================
-
-```
-Chunks → Concepts → Co-Occurs → RelationCandidates → LLM Scoring → Neo4j Upserts
-```
-
-**ScoredRelation example:**
-
-```json
-{ "predicate": "TREATS", "confidence": 0.92 }
-```
-
----
-
-# ============================================================
-# 7. FULL API LAYER
-# ============================================================
-
-## Evidence
-`GET /v1/evidence/{chunkId}`
-
-## Neighborhood
-`GET /v1/graph/concept/{id}/neighbors`
-
-## Semantic Query
-`POST /v1/query`
-
-## Jobs
-`POST /v1/query?mode=async`
-
----
-
-# ============================================================
-# 8. CONFIGURATION
-# ============================================================
-
-`application.conf`:
+## Configuration
+Primary settings live in `application.conf`:
 
 ```
 ollama { baseUrl = "http://localhost:11434" }
-neo4j  { uri="bolt://localhost:7687" ... }
+neo4j  { uri = "bolt://localhost:7687" ... }
 ```
 
----
+## Troubleshooting
+- **Ollama not reachable:** start the service with `ollama serve`.
+- **Neo4j login failure:** reset credentials via the Neo4j browser.
+- **Empty API responses:** ensure the ingestion pipeline has populated the graph.
 
-# ============================================================
-# 9. TROUBLESHOOTING
-# ============================================================
-
-### Ollama Not Reachable  
-Run:  
-```bash
-ollama serve
-```
-
-### Neo4j Login Failure  
-Reset via browser.
-
-### API Empty  
-Run ingestion first.
-
----
-
-# ============================================================
-# 10. TESTING
-# ============================================================
+## Testing
+Run the full test suite:
 
 ```bash
 sbt test
 ```
 
-Tests include:
+Key specs: `ConceptRelationshipMappingTest`, `GraphProjectorSpec`, `RelationScoringStageSpec`, `Neo4jGraphSinkIntegrationSpec`.
 
-- ConceptRelationshipMappingTest  
-- GraphProjectorSpec  
-- RelationScoringStageSpec  
-- Neo4jGraphSinkIntegrationSpec  
+## End-to-End Workflow
+1) Build the shaded JAR:
 
----
-
-# ============================================================
-# 11. END-TO-END WORKFLOW
-# ============================================================
-
-### 1. Build JAR
 ```bash
 sbt clean assembly
 ```
 
-### 2. Run Flink Job
+2) Launch the Flink job:
+
 ```bash
 ./flink/bin/flink run -c ingestion.IngestionModule graphrag-ingestion-assembly.jar
 ```
 
-### 3. Run API
+3) Start the API server:
+
 ```bash
 sbt "project api" run
 ```
 
----
-
-# ============================================================
-# 12. OPTIONAL — AWS EKS DEPLOYMENT
-# ============================================================
+## AWS EKS Deployment (Optional)
+Apply manifests in order:
 
 ```bash
 kubectl apply -f deploy/neo4j.yaml
@@ -329,6 +138,3 @@ helm install graphrag-flink deploy/flink-values.yaml
 kubectl apply -f deploy/api.yaml
 ```
 
----
-
-# END OF DOCUMENTATION
