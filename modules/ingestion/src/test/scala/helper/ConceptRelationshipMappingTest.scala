@@ -52,4 +52,17 @@ class ConceptRelationshipMappingTest extends AnyFunSuite {
     assert(!hasPair(results, "A", "C"))
     assert(!hasPair(results, "C", "A"))
   }
+
+
+  test("computeLocalCoOccurrence on empty mentions yields no pairs") {
+    val results = ConceptRelationshipMapping.computeLocalCoOccurrence(Seq.empty, windowSize = 3)
+    assert(results.isEmpty)
+  }
+
+  test("computeLocalCoOccurrence does not emit pairs for a single mention") {
+    val cA = Concept("A", "a", "A", "test")
+    val mentions = Seq(Mention("chunk-1", cA))
+    val results = ConceptRelationshipMapping.computeLocalCoOccurrence(mentions, windowSize = 3)
+    assert(results.isEmpty)
+  }
 }

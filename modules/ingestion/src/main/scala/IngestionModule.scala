@@ -182,7 +182,7 @@ object IngestionModule {
         .process(
           RelationScoringStage.withOllama(
             baseUrl = ollamaEndpoint,
-            model = "llama3:instruct",
+            model = AppConfig.ollamaModel.scoringModel,
             temperature = 0.0
           )
         )

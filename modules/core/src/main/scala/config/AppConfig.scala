@@ -31,6 +31,7 @@ object AppConfig {
     val connectMs: Int = cfg.getInt("models.ollama.connectMs")
     val attempts: Int = cfg.getInt("models.ollama.attempts")
     val readMs: Int = cfg.getInt("models.ollama.readMs")
+    val scoringModel: String = cfg.getString("models.ollama.scoringModel")
     val chatModel: String = cfg.getString("models.ollama.chatModel")
     val contextWindowSize: Int = cfg.getInt("models.ollama.num_ctx")
     val temperature: Double = cfg.getDouble("models.ollama.temperature")
