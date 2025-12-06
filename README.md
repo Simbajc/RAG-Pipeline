@@ -45,6 +45,11 @@ https://youtu.be/Jv6bz1AcyqI
 | Ollama | Latest | Ensure required models are pulled |
 | Docker | Optional | For local Neo4j/Ollama |
 
+## Please Note that the input files and directory needed for this project could not be added to github please download from link and add it to project directory 
+```text
+https://drive.google.com/drive/folders/17X4YWFc2dLxwdcIrf1v2jpB6Waon3vj7?usp=drive_link
+```
+
 Required Ollama models:
 
 ```bash
