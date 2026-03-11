@@ -1,6 +1,6 @@
 # Graph-Based Retrieval-Augmented Generation (GraphRAG)
 
-Unified documentation for the CS 441 Homework 3 GraphRAG system by Simbarashe Chinomona. This guide combines architecture, prerequisites, and end-to-end workflows for both ingestion and API layers.
+Unified documentation for a GraphRAG system by Simbarashe Chinomona. This guide combines architecture, prerequisites, and end-to-end workflows for both ingestion and API layers.
 
 ## Table of Contents
 - [Overview](#overview)
